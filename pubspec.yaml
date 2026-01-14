@@ -1,0 +1,84 @@
+name: smoothandesign_package
+description: "Package Flutter réutilisable pour la logique métier Firebase - Auth, Storage, Notifications, Messaging, PDF, Export"
+version: 1.1.0
+homepage: https://github.com/smoothandesign/smoothandesign_package
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  firebase_storage: ^13.0.4
+  firebase_messaging: ^16.0.4
+
+  # State Management
+  flutter_bloc: ^9.1.1
+  bloc: ^9.1.0
+  equatable: ^2.0.7
+  get_it: ^8.0.3
+
+  # Auth Providers
+  google_sign_in: ^6.2.3
+  sign_in_with_apple: ^7.0.1
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+
+  # PDF & Printing
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # Export
+  excel: ^4.0.6
+  path_provider: ^2.1.5
+  share_plus: ^12.0.1
+
+  # File Picker
+  file_picker: ^8.1.6
+  image_picker: ^1.1.2
+
+  # Audio
+  record: ^6.0.0
+  just_audio: ^0.9.46
+
+  # Icons
+  font_awesome_flutter: ^10.8.0
+
+  # URL Launcher
+  url_launcher: ^6.3.1
+
+  # Payments
+  flutter_stripe: ^12.1.0
+  cloud_functions: ^6.0.5
+  in_app_purchase: ^3.2.0
+
+  # Utils
+  shared_preferences: ^2.5.3
+  intl: ^0.20.0
+  google_fonts: ^6.3.2
+  http: ^1.2.2
+
+  # Device Info
+  device_info_plus: ^11.3.3
+
+  # Location
+  geolocator: ^13.0.2
+
+  # Encryption
+  flutter_secure_storage: ^9.2.4
+  encrypt: ^5.0.3
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
