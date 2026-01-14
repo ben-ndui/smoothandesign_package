@@ -269,9 +269,51 @@ class BaseAuthService {
 
   // ===== Mot de passe =====
 
+  /// Vérifie les méthodes de connexion pour un email.
+  /// Retourne ['password'], ['google.com'], ['apple.com'], ou combinaisons.
+  Future<List<String>> getSignInMethodsForEmail(String email) async {
+    try {
+      return await SmoothFirebase.auth.fetchSignInMethodsForEmail(email);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Vérifie si un email utilise uniquement OAuth (pas de mot de passe).
+  Future<bool> isOAuthOnlyAccount(String email) async {
+    final methods = await getSignInMethodsForEmail(email);
+    if (methods.isEmpty) return false; // Compte n'existe pas
+    return !methods.contains('password');
+  }
+
   /// Envoie un email de réinitialisation de mot de passe.
+  /// Retourne code 403 si le compte utilise uniquement Google/Apple.
   Future<SmoothResponse<bool>> resetPassword(String email) async {
     try {
+      // Vérifier si le compte utilise OAuth uniquement
+      final methods = await getSignInMethodsForEmail(email);
+
+      if (methods.isEmpty) {
+        // Compte n'existe pas - on envoie quand même pour éviter l'énumération
+        await SmoothFirebase.auth.sendPasswordResetEmail(email: email);
+        return SmoothResponse(
+          data: true,
+          message: "Email de réinitialisation envoyé",
+          code: 200,
+        );
+      }
+
+      if (!methods.contains('password')) {
+        // Compte OAuth uniquement (Google ou Apple)
+        // Retourne le provider dans message pour localisation côté UI
+        final provider = methods.contains('google.com') ? 'Google' : 'Apple';
+        return SmoothResponse(
+          data: false,
+          message: provider, // UI will use this for localization
+          code: 403,
+        );
+      }
+
       await SmoothFirebase.auth.sendPasswordResetEmail(email: email);
       return SmoothResponse(
         data: true,
