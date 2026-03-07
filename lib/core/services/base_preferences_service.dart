@@ -13,12 +13,24 @@ class BasePreferencesService extends ChangeNotifier {
   static const String _notificationsKey = 'notifications_enabled';
   static const String _rememberEmailKey = 'remember_email_enabled';
   static const String _savedEmailKey = 'saved_email';
+  static const String _quickLoginEnabledKey = 'quick_login_enabled';
+  static const String _quickLoginDisplayNameKey = 'quick_login_display_name';
+  static const String _quickLoginEmailKey = 'quick_login_email';
+  static const String _quickLoginPhotoUrlKey = 'quick_login_photo_url';
+  static const String _quickLoginRoleKey = 'quick_login_role';
+  static const String _quickLoginProviderKey = 'quick_login_provider';
 
   ThemeMode _themeMode = ThemeMode.system;
   String _language = 'fr';
   bool _notificationsEnabled = true;
   bool _rememberEmailEnabled = true;
   String? _savedEmail;
+  bool _quickLoginEnabled = false;
+  String? _quickLoginDisplayName;
+  String? _quickLoginEmail;
+  String? _quickLoginPhotoUrl;
+  String? _quickLoginRole;
+  String? _quickLoginProvider;
   bool _isLoaded = false;
 
   /// Mode de thème actuel.
@@ -36,6 +48,24 @@ class BasePreferencesService extends ChangeNotifier {
   /// Email sauvegardé.
   String? get savedEmail => _savedEmail;
 
+  /// Quick login activé.
+  bool get quickLoginEnabled => _quickLoginEnabled;
+
+  /// Nom d'affichage pour quick login.
+  String? get quickLoginDisplayName => _quickLoginDisplayName;
+
+  /// Email pour quick login.
+  String? get quickLoginEmail => _quickLoginEmail;
+
+  /// Photo URL pour quick login.
+  String? get quickLoginPhotoUrl => _quickLoginPhotoUrl;
+
+  /// Rôle pour quick login.
+  String? get quickLoginRole => _quickLoginRole;
+
+  /// Provider pour quick login (email, google, apple).
+  String? get quickLoginProvider => _quickLoginProvider;
+
   /// Indique si les préférences sont chargées.
   bool get isLoaded => _isLoaded;
 
@@ -50,6 +80,12 @@ class BasePreferencesService extends ChangeNotifier {
     _notificationsEnabled = prefs.getBool(_notificationsKey) ?? true;
     _rememberEmailEnabled = prefs.getBool(_rememberEmailKey) ?? true;
     _savedEmail = prefs.getString(_savedEmailKey);
+    _quickLoginEnabled = prefs.getBool(_quickLoginEnabledKey) ?? false;
+    _quickLoginDisplayName = prefs.getString(_quickLoginDisplayNameKey);
+    _quickLoginEmail = prefs.getString(_quickLoginEmailKey);
+    _quickLoginPhotoUrl = prefs.getString(_quickLoginPhotoUrlKey);
+    _quickLoginRole = prefs.getString(_quickLoginRoleKey);
+    _quickLoginProvider = prefs.getString(_quickLoginProviderKey);
 
     _isLoaded = true;
     notifyListeners();
@@ -153,6 +189,54 @@ class BasePreferencesService extends ChangeNotifier {
     } else {
       await prefs.remove(_savedEmailKey);
     }
+  }
+
+  /// Sauvegarde les données de connexion rapide.
+  Future<void> setQuickLoginData({
+    required String displayName,
+    required String email,
+    required String role,
+    required String provider,
+    String? photoUrl,
+  }) async {
+    _quickLoginEnabled = true;
+    _quickLoginDisplayName = displayName;
+    _quickLoginEmail = email;
+    _quickLoginRole = role;
+    _quickLoginProvider = provider;
+    _quickLoginPhotoUrl = photoUrl;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_quickLoginEnabledKey, true);
+    await prefs.setString(_quickLoginDisplayNameKey, displayName);
+    await prefs.setString(_quickLoginEmailKey, email);
+    await prefs.setString(_quickLoginRoleKey, role);
+    await prefs.setString(_quickLoginProviderKey, provider);
+    if (photoUrl != null) {
+      await prefs.setString(_quickLoginPhotoUrlKey, photoUrl);
+    } else {
+      await prefs.remove(_quickLoginPhotoUrlKey);
+    }
+  }
+
+  /// Efface les données de connexion rapide.
+  Future<void> clearQuickLoginData() async {
+    _quickLoginEnabled = false;
+    _quickLoginDisplayName = null;
+    _quickLoginEmail = null;
+    _quickLoginPhotoUrl = null;
+    _quickLoginRole = null;
+    _quickLoginProvider = null;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_quickLoginEnabledKey);
+    await prefs.remove(_quickLoginDisplayNameKey);
+    await prefs.remove(_quickLoginEmailKey);
+    await prefs.remove(_quickLoginPhotoUrlKey);
+    await prefs.remove(_quickLoginRoleKey);
+    await prefs.remove(_quickLoginProviderKey);
   }
 
   /// Réinitialise les préférences aux valeurs par défaut.
