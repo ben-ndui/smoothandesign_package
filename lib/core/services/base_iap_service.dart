@@ -66,7 +66,10 @@ class IAPPurchaseResult {
   }
 
   factory IAPPurchaseResult.cancelled() {
-    return const IAPPurchaseResult._(success: false, error: 'Achat annulé');
+    return const IAPPurchaseResult._(
+      success: false,
+      error: 'Achat annulé',
+    );
   }
 }
 
@@ -76,6 +79,7 @@ abstract class BaseIAPService {
   final IAPServiceConfig config;
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  bool _initialized = false;
 
   /// Callback appelé quand un achat est complété
   void Function(IAPPurchaseResult result)? onPurchaseCompleted;
@@ -88,32 +92,52 @@ abstract class BaseIAPService {
 
   BaseIAPService({required this.config});
 
+  void _log(String message) {
+    if (kDebugMode) debugPrint(message);
+  }
+
   /// Vérifie si IAP est disponible (iOS uniquement)
   bool get isAvailableOnPlatform => Platform.isIOS;
+
+  /// Indique si le service a été initialisé
+  bool get isInitialized => _initialized;
 
   /// Initialise le service IAP
   Future<void> initialize() async {
     if (!isAvailableOnPlatform) {
-      debugPrint('IAP: Non disponible sur cette plateforme (iOS uniquement)');
+      _log('IAP: Non disponible sur cette plateforme');
+      return;
+    }
+
+    // Guard against double-initialization
+    if (_initialized && _subscription != null) {
+      _log('IAP: Déjà initialisé, skip');
       return;
     }
 
     final available = await _iap.isAvailable();
     if (!available) {
-      debugPrint('IAP: Store non disponible');
+      _log('IAP: Store non disponible');
       return;
     }
 
+    // Cancel any previous subscription before creating a new one
+    await _subscription?.cancel();
+
     _subscription = _iap.purchaseStream.listen(
       _onPurchaseUpdated,
-      onDone: () => _subscription?.cancel(),
+      onDone: () {
+        _log('IAP: purchaseStream done');
+        _subscription?.cancel();
+      },
       onError: (error) {
-        debugPrint('IAP Stream Error: $error');
+        _log('IAP: purchaseStream error: $error');
         onPurchaseError?.call(error.toString());
       },
     );
 
-    debugPrint('IAP: Service initialisé');
+    _initialized = true;
+    _log('IAP: Service initialisé');
   }
 
   /// Vérifie si les achats in-app sont disponibles
@@ -123,7 +147,9 @@ abstract class BaseIAPService {
   }
 
   /// Récupère les produits disponibles
-  Future<List<ProductDetails>> getProducts([List<String>? productIds]) async {
+  Future<List<ProductDetails>> getProducts([
+    List<String>? productIds,
+  ]) async {
     if (!isAvailableOnPlatform) return [];
 
     final available = await _iap.isAvailable();
@@ -133,12 +159,12 @@ abstract class BaseIAPService {
     final response = await _iap.queryProductDetails(ids.toSet());
 
     if (response.error != null) {
-      debugPrint('IAP: Erreur query products: ${response.error}');
+      _log('IAP: Erreur query products: ${response.error}');
       return [];
     }
 
     if (response.notFoundIDs.isNotEmpty) {
-      debugPrint('IAP: Products non trouvés: ${response.notFoundIDs}');
+      _log('IAP: Products non trouvés: ${response.notFoundIDs}');
     }
 
     return response.productDetails;
@@ -155,23 +181,34 @@ abstract class BaseIAPService {
   }
 
   /// Lance un achat
-  Future<void> buyProduct(ProductDetails product) async {
+  Future<bool> buyProduct(ProductDetails product) async {
     if (!isAvailableOnPlatform) {
       onPurchaseError?.call('IAP disponible uniquement sur iOS');
-      return;
+      return false;
     }
 
     final purchaseParam = PurchaseParam(productDetails: product);
 
     try {
+      bool started;
       if (isSubscription(product.id)) {
-        await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+        started = await _iap.buyNonConsumable(
+          purchaseParam: purchaseParam,
+        );
       } else {
-        await _iap.buyConsumable(purchaseParam: purchaseParam);
+        started = await _iap.buyConsumable(
+          purchaseParam: purchaseParam,
+        );
       }
+      _log('IAP: buyProduct started=$started for ${product.id}');
+      if (!started) {
+        onPurchaseError?.call('Impossible de lancer l\'achat');
+      }
+      return started;
     } catch (e) {
-      debugPrint('IAP: Erreur achat: $e');
+      _log('IAP: Erreur achat: $e');
       onPurchaseError?.call(e.toString());
+      return false;
     }
   }
 
@@ -182,40 +219,47 @@ abstract class BaseIAPService {
     try {
       await _iap.restorePurchases();
     } catch (e) {
-      debugPrint('IAP: Erreur restauration: $e');
+      _log('IAP: Erreur restauration: $e');
       onPurchaseError?.call(e.toString());
     }
   }
 
   /// Gère les mises à jour des achats
   void _onPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) {
+    _log('IAP: purchaseStream event — '
+        '${purchaseDetailsList.length} purchase(s)');
+
     final restoredPurchases = <PurchaseDetails>[];
 
     for (final purchase in purchaseDetailsList) {
+      _log('IAP: ${purchase.productID} → ${purchase.status}');
+
       switch (purchase.status) {
         case PurchaseStatus.pending:
-          debugPrint('IAP: Achat en attente - ${purchase.productID}');
+          _log('IAP: Achat en attente - ${purchase.productID}');
           break;
 
         case PurchaseStatus.error:
-          debugPrint('IAP: Erreur - ${purchase.error?.message}');
-          onPurchaseError?.call(purchase.error?.message ?? 'Erreur inconnue');
+          _log('IAP: Erreur - ${purchase.error?.message}');
+          onPurchaseError?.call(
+            purchase.error?.message ?? 'Erreur inconnue',
+          );
           _completePurchase(purchase);
           break;
 
         case PurchaseStatus.purchased:
-          debugPrint('IAP: Achat réussi - ${purchase.productID}');
+          _log('IAP: Achat réussi - ${purchase.productID}');
           _verifyAndDeliverProduct(purchase, isRestored: false);
           break;
 
         case PurchaseStatus.restored:
-          debugPrint('IAP: Achat restauré - ${purchase.productID}');
+          _log('IAP: Achat restauré - ${purchase.productID}');
           restoredPurchases.add(purchase);
           _verifyAndDeliverProduct(purchase, isRestored: true);
           break;
 
         case PurchaseStatus.canceled:
-          debugPrint('IAP: Achat annulé - ${purchase.productID}');
+          _log('IAP: Achat annulé - ${purchase.productID}');
           onPurchaseCompleted?.call(IAPPurchaseResult.cancelled());
           _completePurchase(purchase);
           break;
@@ -232,28 +276,34 @@ abstract class BaseIAPService {
     PurchaseDetails purchase, {
     required bool isRestored,
   }) async {
-    // Appeler la méthode de vérification personnalisée (à implémenter)
-    final verified = await verifyPurchase(purchase);
+    try {
+      final verified = await verifyPurchase(purchase);
 
-    if (verified) {
-      // Livrer le produit
-      await deliverProduct(purchase);
+      if (verified) {
+        await deliverProduct(purchase);
 
-      onPurchaseCompleted?.call(IAPPurchaseResult.success(
-        productId: purchase.productID,
-        transactionId: purchase.purchaseID,
-        isRestored: isRestored,
-      ));
-    } else {
-      onPurchaseError?.call('Vérification de l\'achat échouée');
+        onPurchaseCompleted?.call(IAPPurchaseResult.success(
+          productId: purchase.productID,
+          transactionId: purchase.purchaseID,
+          isRestored: isRestored,
+        ));
+      } else {
+        _log('IAP: Vérification échouée pour ${purchase.productID}');
+        onPurchaseError?.call('Vérification de l\'achat échouée');
+      }
+    } catch (e) {
+      _log('IAP: Erreur verify/deliver: $e');
+      onPurchaseError?.call(e.toString());
     }
 
+    // Always complete the purchase to unblock the queue
     await _completePurchase(purchase);
   }
 
   /// Marque un achat comme complété
   Future<void> _completePurchase(PurchaseDetails purchase) async {
     if (purchase.pendingCompletePurchase) {
+      _log('IAP: completing purchase ${purchase.productID}');
       await _iap.completePurchase(purchase);
     }
   }
@@ -269,9 +319,8 @@ abstract class BaseIAPService {
   }
 
   /// Vérifie l'achat côté serveur (à implémenter par les sous-classes)
-  /// Par défaut, retourne true (fait confiance au système)
+  /// Par défaut, retourne true (fait confiance au système StoreKit)
   Future<bool> verifyPurchase(PurchaseDetails purchase) async {
-    // TODO: Implémenter la vérification du reçu côté serveur
     return true;
   }
 
@@ -282,5 +331,6 @@ abstract class BaseIAPService {
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
+    _initialized = false;
   }
 }

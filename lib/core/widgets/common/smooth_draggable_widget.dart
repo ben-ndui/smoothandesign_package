@@ -113,10 +113,13 @@ class _SmoothDraggableWidgetState extends State<SmoothDraggableWidget> {
       showDragHandle.value = shouldShowDragHandle;
     }
 
-    // SafeArea padding management
+    // SafeArea padding management — only when sheet covers the status bar
+    final shouldApplySafeArea = widget.maxSize >= 0.95;
     final safePadding = MediaQuery.of(context).padding.top;
     final targetPadding =
-        controller.size >= widget.maxSize * 0.99 ? safePadding : 0;
+        (shouldApplySafeArea && controller.size >= widget.maxSize * 0.99)
+            ? safePadding
+            : 0;
     if (safeAreaPadding.value != targetPadding) {
       safeAreaPadding.value = targetPadding.toDouble();
     }

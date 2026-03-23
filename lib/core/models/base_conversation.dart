@@ -103,6 +103,7 @@ class BaseConversation extends Equatable {
   final Map<String, ParticipantInfo> participantDetails;
   final Map<String, int> unreadCounts;
   final Map<String, bool> isArchived;
+  final Map<String, bool> isMuted;
   final LastMessageSummary? lastMessage;
 
   const BaseConversation({
@@ -117,6 +118,7 @@ class BaseConversation extends Equatable {
     this.participantDetails = const {},
     this.unreadCounts = const {},
     this.isArchived = const {},
+    this.isMuted = const {},
     this.lastMessage,
   });
 
@@ -125,6 +127,9 @@ class BaseConversation extends Equatable {
 
   /// Vérifie si archivée pour un utilisateur.
   bool isArchivedFor(String userId) => isArchived[userId] ?? false;
+
+  /// Vérifie si les notifications sont coupées pour un utilisateur.
+  bool isMutedFor(String userId) => isMuted[userId] ?? false;
 
   /// Nom d'affichage de la conversation.
   String getDisplayName(String currentUserId) {
@@ -194,6 +199,14 @@ class BaseConversation extends Equatable {
       }
     }
 
+    // Parse isMuted map
+    Map<String, bool> mutedMap = {};
+    if (map['isMuted'] != null && map['isMuted'] is Map) {
+      (map['isMuted'] as Map).forEach((k, v) {
+        mutedMap[k.toString()] = v == true;
+      });
+    }
+
     // Parse unreadCounts safely
     Map<String, int> unreadCounts = {};
     if (map['unreadCounts'] != null && map['unreadCounts'] is Map) {
@@ -224,6 +237,7 @@ class BaseConversation extends Equatable {
       participantDetails: participantDetails,
       unreadCounts: unreadCounts,
       isArchived: archivedMap,
+      isMuted: mutedMap,
       lastMessage: lastMessage,
     );
   }
@@ -240,6 +254,7 @@ class BaseConversation extends Equatable {
             participantDetails.map((k, v) => MapEntry(k, v.toMap())),
         'unreadCounts': unreadCounts,
         'isArchived': isArchived,
+        'isMuted': isMuted,
         if (lastMessage != null) 'lastMessage': lastMessage!.toMap(),
       };
 
@@ -255,6 +270,7 @@ class BaseConversation extends Equatable {
     Map<String, ParticipantInfo>? participantDetails,
     Map<String, int>? unreadCounts,
     Map<String, bool>? isArchived,
+    Map<String, bool>? isMuted,
     LastMessageSummary? lastMessage,
   }) {
     return BaseConversation(
@@ -269,6 +285,7 @@ class BaseConversation extends Equatable {
       participantDetails: participantDetails ?? this.participantDetails,
       unreadCounts: unreadCounts ?? this.unreadCounts,
       isArchived: isArchived ?? this.isArchived,
+      isMuted: isMuted ?? this.isMuted,
       lastMessage: lastMessage ?? this.lastMessage,
     );
   }

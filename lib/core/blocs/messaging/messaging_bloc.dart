@@ -36,6 +36,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     on<SendBusinessObjectMessageEvent>(_onSendBusinessObjectMessage);
     on<MarkConversationAsReadEvent>(_onMarkConversationAsRead);
     on<ToggleArchiveConversationEvent>(_onToggleArchive);
+    on<ToggleMuteConversationEvent>(_onToggleMute);
     on<DeleteMessageEvent>(_onDeleteMessage);
     on<LoadMoreMessagesEvent>(_onLoadMoreMessages);
     on<StartPrivateConversationEvent>(_onStartPrivateConversation);
@@ -162,7 +163,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
         .streamMessages(event.conversationId)
         .listen(
           (messages) => add(MessagesUpdatedEvent(messages: messages)),
-          onError: (e) => emit(MessagingErrorState(message: 'Erreur: $e')),
+          onError: (e) => add(MessagesUpdatedEvent(messages: const [])),
         );
 
     // Marquer comme lu
@@ -324,6 +325,19 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       conversationId: event.conversationId,
       userId: _currentUserId!,
       archived: event.archived,
+    );
+  }
+
+  Future<void> _onToggleMute(
+    ToggleMuteConversationEvent event,
+    Emitter<MessagingState> emit,
+  ) async {
+    if (_currentUserId == null) return;
+
+    await _messagingService.setConversationMuted(
+      conversationId: event.conversationId,
+      userId: _currentUserId!,
+      muted: event.muted,
     );
   }
 

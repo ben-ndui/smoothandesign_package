@@ -173,6 +173,22 @@ class BaseMessagingService {
     }
   }
 
+  /// Mute/unmute les notifications d'une conversation pour un utilisateur.
+  Future<SmoothResponse<void>> setConversationMuted({
+    required String conversationId,
+    required String userId,
+    required bool muted,
+  }) async {
+    try {
+      await _conversations.doc(conversationId).update({
+        'isMuted.$userId': muted,
+      });
+      return SmoothResponse.success();
+    } catch (e) {
+      return SmoothResponse.error(message: 'Erreur mute: $e');
+    }
+  }
+
   /// Met à jour le nom d'une conversation de groupe.
   Future<SmoothResponse<void>> updateConversationName({
     required String conversationId,

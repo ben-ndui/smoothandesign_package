@@ -268,10 +268,11 @@ class BaseMessage extends Equatable {
       text: map['text'],
       type: MessageType.fromString(map['type']),
       sentAt: _parseDate(map['sentAt']),
-      readBy: (map['readBy'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(k, _parseDate(v)),
-          ) ??
-          {},
+      readBy: map['readBy'] is Map
+          ? (map['readBy'] as Map).map(
+              (k, v) => MapEntry(k.toString(), _parseDate(v)),
+            )
+          : {},
       attachment: map['attachment'] != null
           ? MessageAttachment.fromMap(map['attachment'])
           : null,
@@ -283,10 +284,14 @@ class BaseMessage extends Equatable {
           : null,
       isDeleted: map['isDeleted'] ?? false,
       editedAt: map['editedAt'] != null ? _parseDate(map['editedAt']) : null,
-      reactions: (map['reactions'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(k, List<String>.from(v ?? [])),
-          ) ??
-          {},
+      reactions: map['reactions'] is Map
+          ? (map['reactions'] as Map).map(
+              (k, v) => MapEntry(
+                k.toString(),
+                v is List ? List<String>.from(v) : <String>[],
+              ),
+            )
+          : {},
       status: MessageStatus.fromString(map['status']),
     );
   }

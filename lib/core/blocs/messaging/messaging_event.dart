@@ -123,6 +123,20 @@ class ToggleArchiveConversationEvent extends MessagingEvent {
   List<Object?> get props => [conversationId, archived];
 }
 
+/// Mute/unmute les notifications d'une conversation.
+class ToggleMuteConversationEvent extends MessagingEvent {
+  final String conversationId;
+  final bool muted;
+
+  const ToggleMuteConversationEvent({
+    required this.conversationId,
+    required this.muted,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, muted];
+}
+
 /// Supprime un message.
 class DeleteMessageEvent extends MessagingEvent {
   final String messageId;
