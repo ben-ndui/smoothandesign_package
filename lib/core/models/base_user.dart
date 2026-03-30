@@ -171,5 +171,14 @@ class BaseUser extends Equatable implements BaseModel {
   bool get hasAdminRights => isAdmin || isSuperAdmin;
 
   @override
-  List<Object?> get props => [uid, email, role, isBlocked];
+  List<Object?> get props => [
+        uid,
+        email,
+        name,
+        displayName,
+        photoURL,
+        phoneNumber,
+        role,
+        isBlocked,
+      ];
 }
