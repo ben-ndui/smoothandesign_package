@@ -43,34 +43,44 @@ class _GlassChipState extends State<GlassChip> {
       child: AnimatedScale(
         scale: _isPressed ? 0.95 : 1.0,
         duration: const Duration(milliseconds: 150),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.icon != null) ...[
-                FaIcon(widget.icon, size: 12, color: Colors.white),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
+        child: Builder(
+          builder: (context) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final cs = Theme.of(context).colorScheme;
+            final fgColor = isDark ? Colors.white : cs.onSurface;
+            final bgColor = isDark ? Colors.white.withValues(alpha: 0.1) : cs.surfaceContainerHigh;
+            final borderColor = isDark ? Colors.white.withValues(alpha: 0.2) : cs.outlineVariant;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor),
               ),
-              if (widget.showChevron) ...[
-                const SizedBox(width: 4),
-                const FaIcon(FontAwesomeIcons.chevronRight, size: 10, color: Colors.white),
-              ],
-            ],
-          ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.icon != null) ...[
+                    FaIcon(widget.icon, size: 12, color: fgColor),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: fgColor,
+                    ),
+                  ),
+                  if (widget.showChevron) ...[
+                    const SizedBox(width: 4),
+                    FaIcon(FontAwesomeIcons.chevronRight, size: 10, color: fgColor.withValues(alpha: 0.6)),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

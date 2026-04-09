@@ -28,20 +28,21 @@ class GlassSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final iconBgColor = isDark ? Colors.white.withValues(alpha: 0.15) : cs.primary.withValues(alpha: 0.12);
+    final iconBgColor2 = isDark ? Colors.white.withValues(alpha: 0.08) : cs.primary.withValues(alpha: 0.06);
+    final fgColor = isDark ? Colors.white : cs.onSurface;
+
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withValues(alpha: 0.15),
-                Colors.white.withValues(alpha: 0.08),
-              ],
-            ),
+            gradient: LinearGradient(colors: [iconBgColor, iconBgColor2]),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: FaIcon(icon, size: iconSize ?? 14, color: Colors.white),
+          child: FaIcon(icon, size: iconSize ?? 14, color: isDark ? Colors.white : cs.primary),
         ),
         const SizedBox(width: 12),
         Text(
@@ -49,7 +50,7 @@ class GlassSectionHeader extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize ?? 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: fgColor,
           ),
         ),
       ],

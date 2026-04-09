@@ -37,48 +37,59 @@ class GlassEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.08),
-            Colors.white.withValues(alpha: 0.03),
-          ],
-        ),
+        gradient: isDark
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.03),
+                ],
+              )
+            : null,
+        color: isDark ? null : cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.1) : cs.outlineVariant,
+        ),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : cs.surfaceContainerHigh,
               shape: BoxShape.circle,
             ),
             child: FaIcon(
               icon,
               size: 24,
-              color: iconColor ?? const Color(0xFFB0C4DE),
+              color: iconColor ?? (isDark ? const Color(0xFFB0C4DE) : cs.primary),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: isDark ? Colors.white : cs.onSurface,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: Color(0xFFB0C4DE)),
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? const Color(0xFFB0C4DE) : cs.onSurfaceVariant,
+            ),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 16),
