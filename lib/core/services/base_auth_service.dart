@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -148,9 +149,12 @@ class BaseAuthService {
   /// Retourne code 201 si nouvel utilisateur (nécessite sélection de rôle).
   Future<SmoothResponse<bool>> signInWithGoogle() async {
     try {
+      debugPrint('🔵 [GoogleSignIn] signInWithGoogle() called');
       final googleUser = await GoogleSignIn(scopes: ['email']).signIn();
+      debugPrint('🔵 [GoogleSignIn] googleUser: $googleUser');
 
       if (googleUser == null) {
+        debugPrint('🔵 [GoogleSignIn] cancelled or null');
         return SmoothResponse(data: false, message: "Connexion Google annulée", code: 400);
       }
 
@@ -176,7 +180,9 @@ class BaseAuthService {
 
       await _updateFcmToken();
       return SmoothResponse(data: true, message: "Connexion Google réussie", code: 200);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('❌ [GoogleSignIn] Error: $e');
+      debugPrint('❌ [GoogleSignIn] Stack: $stack');
       return SmoothResponse(data: false, message: "Erreur Google: $e", code: 500);
     }
   }
