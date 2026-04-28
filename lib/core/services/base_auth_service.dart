@@ -24,6 +24,12 @@ class BaseAuthService {
   String? _authToken;
   BaseUser? _currentUser;
 
+  /// Apple authorization code en attente de persistence.
+  /// Mis à jour par [signInWithApple] quand le user n'a pas encore de doc
+  /// Firestore (nouvel utilisateur). Sera flushé dans Firestore par
+  /// [completeSocialSignUp] une fois le doc créé.
+  String? _pendingAppleAuthCode;
+
   /// Utilisateur actuellement connecté.
   BaseUser? get currentUser => _currentUser;
 
@@ -227,19 +233,30 @@ class BaseAuthService {
   }
 
   /// Store Apple authorization code for token revocation.
+  ///
+  /// Utilise `update` (et non `set merge:true`) pour ne JAMAIS pré-créer un
+  /// doc Firestore : si le doc n'existe pas (nouvel utilisateur), update
+  /// échoue, on cache le code dans [_pendingAppleAuthCode] et il sera
+  /// persisté plus tard par [completeSocialSignUp]. Sans ça, un doc minimal
+  /// (avec uniquement appleAuthCode + appleAuthCodeUpdatedAt) faisait croire
+  /// au `getUserFromFirestore` suivant que le user existait déjà → le
+  /// RoleSelector n'était jamais affiché et l'utilisateur restait piégé
+  /// avec un rôle par défaut.
   Future<void> _storeAppleAuthCode(String? authCode) async {
     if (authCode == null || SmoothFirebase.currentUserId == null) return;
 
     try {
-      // Hash the auth code for security (we'll use it with Apple's API)
       await SmoothFirebase.collection('users')
           .doc(SmoothFirebase.currentUserId!)
-          .set({
+          .update({
         'appleAuthCode': authCode,
         'appleAuthCodeUpdatedAt': DateTime.now().toIso8601String(),
-      }, SetOptions(merge: true));
+      });
+      _pendingAppleAuthCode = null;
     } catch (_) {
-      // Non-blocking
+      // Doc inexistant (nouvel utilisateur) — on stocke en mémoire pour
+      // que completeSocialSignUp le persiste après création du doc.
+      _pendingAppleAuthCode = authCode;
     }
   }
 
@@ -260,6 +277,12 @@ class BaseAuthService {
         role: role,
         extraData: extraData,
       );
+
+      // Flush l'Apple auth code mis en attente par signInWithApple : le doc
+      // existe maintenant, l'update va aboutir.
+      if (_pendingAppleAuthCode != null) {
+        await _storeAppleAuthCode(_pendingAppleAuthCode);
+      }
 
       _currentUser = await getUserFromFirestore(SmoothFirebase.currentUserId!);
       await _updateFcmToken();
