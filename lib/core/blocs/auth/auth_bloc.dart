@@ -64,7 +64,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoadingState());
 
     if (SmoothFirebase.currentUser != null) {
-      await _authService.reloadUser();
+      try {
+        await _authService.reloadUser();
+      } catch (_) {
+        // reloadUser() can throw on cold start when the network stack isn't
+        // ready yet (notably on iOS TestFlight release builds). Swallow and
+        // fall back to the cached user — leaving the BLoC stuck on
+        // AuthLoadingState would freeze the splash screen indefinitely.
+      }
 
       if (_authService.currentUser != null) {
         _startUserDocListener();

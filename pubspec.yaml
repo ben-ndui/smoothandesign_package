@@ -1,6 +1,6 @@
 name: smoothandesign_package
 description: "Package Smooth & Design : logique métier Firebase mutualisée — auth, storage, messaging, PDF, export."
-version: 1.1.0
+version: 1.1.1
 homepage: https://github.com/smoothandesign/smoothandesign_package
 
 environment:
