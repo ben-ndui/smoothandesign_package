@@ -99,6 +99,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     final user = _authService.currentUser;
     if (user == null) return;
+    // Must stop the user-doc listener before emitting: side effects of the
+    // app-level Auth listener (e.g. clearing FCM token writes back to the
+    // user doc) would otherwise trigger UserDocumentChangedEvent, which
+    // re-emits AuthAuthenticatedState and undoes the lock instantly.
+    _stopUserDocListener();
     await _authService.lockApp();
     emit(AuthLockedState(user: user, lockedAt: DateTime.now()));
   }
