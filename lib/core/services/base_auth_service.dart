@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../firebase/smooth_firebase.dart';
 import '../models/smooth_response.dart';
 import '../models/base_user.dart';
@@ -21,6 +22,13 @@ import '../models/base_user_role.dart';
 /// }
 /// ```
 class BaseAuthService {
+  /// Secure storage key for the "app locked" flag. When set, the auth bloc
+  /// emits AuthLockedState on CheckAuth instead of AuthAuthenticatedState
+  /// — the user has to clear it via biometric verification.
+  static const _kIsLockedKey = 'auth.isLocked';
+
+  final FlutterSecureStorage _lockStorage = const FlutterSecureStorage();
+
   String? _authToken;
   BaseUser? _currentUser;
 
@@ -315,6 +323,30 @@ class BaseAuthService {
     _currentUser = null;
     _authToken = null;
     await _clearToken();
+    await unlockApp();
+  }
+
+  // ===== App lock (biometric quick-relogin) =====
+
+  /// Marque l'app comme verrouillée. Ne touche PAS aux tokens Firebase ou
+  /// Google — l'utilisateur reste techniquement connecté, c'est juste l'UI
+  /// qui doit demander une vérification biométrique avant de remettre
+  /// l'utilisateur au dashboard.
+  Future<void> lockApp() async {
+    await _lockStorage.write(key: _kIsLockedKey, value: 'true');
+  }
+
+  /// Lève le verrou. À appeler depuis l'UI uniquement après une vérification
+  /// biométrique réussie — l'AuthBloc ne fait pas la vérif lui-même.
+  Future<void> unlockApp() async {
+    await _lockStorage.delete(key: _kIsLockedKey);
+  }
+
+  /// True si le flag de verrouillage est présent. Ne reflète pas une vraie
+  /// déconnexion : `currentUser` peut toujours être valide en parallèle.
+  Future<bool> get isAppLocked async {
+    final value = await _lockStorage.read(key: _kIsLockedKey);
+    return value == 'true';
   }
 
   // ===== Mot de passe =====

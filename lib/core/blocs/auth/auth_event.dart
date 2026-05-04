@@ -118,3 +118,17 @@ class ImpersonateUserEvent extends AuthEvent {
 class StopImpersonationEvent extends AuthEvent {
   const StopImpersonationEvent();
 }
+
+/// Verrouille l'app sans déconnecter Firebase. Le token reste en cache, le
+/// flag `auth.isLocked` est posé en secure storage. Au prochain CheckAuth,
+/// l'AuthBloc émet `AuthLockedState` au lieu de `AuthAuthenticatedState`.
+class LockAppEvent extends AuthEvent {
+  const LockAppEvent();
+}
+
+/// Déverrouille l'app après vérification biométrique côté UI. Clear le flag
+/// et émet `AuthAuthenticatedState` à partir du `currentUser` toujours
+/// présent dans Firebase Auth.
+class UnlockAppEvent extends AuthEvent {
+  const UnlockAppEvent();
+}

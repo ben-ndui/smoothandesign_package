@@ -31,6 +31,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<UserDocumentChangedEvent>(_onUserDocumentChanged);
     on<ImpersonateUserEvent>(_onImpersonateUser);
     on<StopImpersonationEvent>(_onStopImpersonation);
+    on<LockAppEvent>(_onLockApp);
+    on<UnlockAppEvent>(_onUnlockApp);
   }
 
   /// Utilisateur actuellement connecté.
@@ -74,14 +76,47 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       if (_authService.currentUser != null) {
-        _startUserDocListener();
-        emit(AuthAuthenticatedState(user: _authService.currentUser!));
+        if (await _authService.isAppLocked) {
+          emit(AuthLockedState(
+            user: _authService.currentUser!,
+            lockedAt: DateTime.now(),
+          ));
+        } else {
+          _startUserDocListener();
+          emit(AuthAuthenticatedState(user: _authService.currentUser!));
+        }
       } else {
         emit(const AuthUnauthenticatedState());
       }
     } else {
       emit(const AuthUnauthenticatedState());
     }
+  }
+
+  Future<void> _onLockApp(
+    LockAppEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+    await _authService.lockApp();
+    emit(AuthLockedState(user: user, lockedAt: DateTime.now()));
+  }
+
+  Future<void> _onUnlockApp(
+    UnlockAppEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      // Edge case: token expired while locked — drop to unauthenticated.
+      await _authService.unlockApp();
+      emit(const AuthUnauthenticatedState());
+      return;
+    }
+    await _authService.unlockApp();
+    _startUserDocListener();
+    emit(AuthAuthenticatedState(user: user));
   }
 
   Future<void> _onSignInWithEmail(

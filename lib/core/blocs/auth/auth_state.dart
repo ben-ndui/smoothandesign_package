@@ -94,3 +94,20 @@ class AuthImpersonatingState extends AuthState {
   @override
   List<Object?> get props => [originalUser, impersonatedUser];
 }
+
+/// App verrouillée — token Firebase toujours en cache, mais l'UI doit
+/// demander une vérification biométrique avant de remettre l'utilisateur
+/// au dashboard. Le user est embarqué pour pouvoir afficher l'avatar/nom
+/// sur l'écran de verrouillage sans avoir à le re-fetch.
+class AuthLockedState extends AuthState {
+  final BaseUser user;
+  final DateTime lockedAt;
+
+  const AuthLockedState({
+    required this.user,
+    required this.lockedAt,
+  });
+
+  @override
+  List<Object?> get props => [user, lockedAt];
+}
