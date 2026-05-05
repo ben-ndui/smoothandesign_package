@@ -120,7 +120,7 @@ class BaseAuthService {
         code: 200,
       );
     } on FirebaseAuthException catch (e) {
-      return SmoothResponse(message: _getErrorMessage(e), code: 500);
+      return SmoothResponse(message: authErrorMessageFor(e), code: 500);
     } catch (e) {
       return SmoothResponse(message: "Erreur: $e", code: 500);
     }
@@ -153,7 +153,7 @@ class BaseAuthService {
 
       return SmoothResponse(data: true, message: "Connexion réussie", code: 200);
     } on FirebaseAuthException catch (e) {
-      return SmoothResponse(data: false, message: _getErrorMessage(e), code: 500);
+      return SmoothResponse(data: false, message: authErrorMessageFor(e), code: 500);
     } catch (e) {
       return SmoothResponse(data: false, message: "Erreur: $e", code: 500);
     }
@@ -378,7 +378,7 @@ class BaseAuthService {
         code: 200,
       );
     } on FirebaseAuthException catch (e) {
-      return SmoothResponse(data: false, message: _getErrorMessage(e), code: 500);
+      return SmoothResponse(data: false, message: authErrorMessageFor(e), code: 500);
     }
   }
 
@@ -550,12 +550,23 @@ class BaseAuthService {
     await prefs.remove('auth_token');
   }
 
-  String _getErrorMessage(FirebaseAuthException e) {
+  /// Maps a [FirebaseAuthException] to a localised user-facing message.
+  /// Static so callers (and tests) can use it without an instance, and
+  /// so subclasses can override the wrapping logic without re-mapping.
+  @visibleForTesting
+  static String authErrorMessageFor(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'Aucun utilisateur trouvé avec cet email';
       case 'wrong-password':
-        return 'Mot de passe incorrect';
+      // Firebase Auth returns this generic code when
+      // `emailPrivacyConfig.enableImprovedEmailPrivacy = true` is set on
+      // the project — it intentionally hides whether the failure was
+      // wrong-password vs user-not-found. Map it to a single
+      // user-friendly message so users don't see the raw
+      // "INVALID_LOGIN_CREDENTIALS" string.
+      case 'invalid-credential':
+      case 'INVALID_LOGIN_CREDENTIALS':
+        return 'Email ou mot de passe incorrect';
       case 'email-already-in-use':
         return 'Cet email est déjà utilisé';
       case 'invalid-email':
@@ -566,6 +577,10 @@ class BaseAuthService {
         return 'Ce compte a été désactivé';
       case 'too-many-requests':
         return 'Trop de tentatives, réessayez plus tard';
+      case 'network-request-failed':
+        return 'Connexion internet indisponible';
+      case 'operation-not-allowed':
+        return 'Cette méthode de connexion est désactivée';
       default:
         return e.message ?? 'Une erreur est survenue';
     }
