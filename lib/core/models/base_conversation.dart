@@ -15,15 +15,24 @@ enum ConversationType {
 }
 
 /// Informations sur un participant.
+///
+/// `isPioneer` est un denorm du flag `pioneer.isPioneer` du doc user,
+/// recopié dans participantDetails à la création de la conversation
+/// puis re-synchronisé par le trigger backend `onUserUpdatedCheckPioneer`
+/// chaque fois que le badge Pioneer est attribué/retiré. Ça évite de
+/// joindre N docs `users` pour afficher le badge sur la liste des
+/// conversations.
 class ParticipantInfo extends Equatable {
   final String name;
   final String? avatarUrl;
   final String? role;
+  final bool isPioneer;
 
   const ParticipantInfo({
     required this.name,
     this.avatarUrl,
     this.role,
+    this.isPioneer = false,
   });
 
   factory ParticipantInfo.fromMap(Map<String, dynamic> map) {
@@ -31,6 +40,7 @@ class ParticipantInfo extends Equatable {
       name: map['name'] ?? '',
       avatarUrl: map['avatarUrl'],
       role: map['role'],
+      isPioneer: map['isPioneer'] == true,
     );
   }
 
@@ -38,10 +48,25 @@ class ParticipantInfo extends Equatable {
         'name': name,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
         if (role != null) 'role': role,
+        if (isPioneer) 'isPioneer': true,
       };
 
+  ParticipantInfo copyWith({
+    String? name,
+    String? avatarUrl,
+    String? role,
+    bool? isPioneer,
+  }) {
+    return ParticipantInfo(
+      name: name ?? this.name,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      role: role ?? this.role,
+      isPioneer: isPioneer ?? this.isPioneer,
+    );
+  }
+
   @override
-  List<Object?> get props => [name, avatarUrl, role];
+  List<Object?> get props => [name, avatarUrl, role, isPioneer];
 }
 
 /// Résumé du dernier message.
