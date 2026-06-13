@@ -28,6 +28,13 @@ class ChatView extends StatefulWidget {
   final bool isSending;
   final Widget? emptyWidget;
 
+  /// Affiche le bouton pièce jointe dans la barre de saisie (défaut: true).
+  /// Mettre à `false` pour un chat texte seul (callbacks non câblés).
+  final bool showAttachmentButton;
+
+  /// Affiche le bouton audio/micro dans la barre de saisie (défaut: true).
+  final bool showAudioButton;
+
   /// Builder personnalisé pour les business objects (session, booking, etc.).
   final Widget Function(BusinessObjectAttachment bo, bool isMe)? businessObjectBuilder;
 
@@ -60,6 +67,8 @@ class ChatView extends StatefulWidget {
     this.hasMoreMessages = true,
     this.isSending = false,
     this.emptyWidget,
+    this.showAttachmentButton = true,
+    this.showAudioButton = true,
     this.businessObjectBuilder,
     this.reactionBuilder,
     this.onReactionTap,
@@ -111,6 +120,8 @@ class _ChatViewState extends State<ChatView> {
               isRecording: widget.isRecording,
               showAudioPreview: widget.showAudioPreview,
               audioPreviewWidget: widget.audioPreviewWidget,
+              showAttachmentButton: widget.showAttachmentButton,
+              showAudioButton: widget.showAudioButton,
               enabled: !widget.isSending,
             ),
           ],
