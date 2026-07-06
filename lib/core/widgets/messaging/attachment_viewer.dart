@@ -160,7 +160,7 @@ class AttachmentViewer extends StatelessWidget {
     );
   }
 
-  IconData _getFileIcon(String ext) {
+  FaIconData _getFileIcon(String ext) {
     switch (ext) {
       case 'pdf':
         return FontAwesomeIcons.filePdf;

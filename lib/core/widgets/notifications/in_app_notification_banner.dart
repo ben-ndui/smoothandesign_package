@@ -4,7 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Configuration for notification type styling
 class NotificationTypeConfig {
-  final IconData icon;
+  final FaIconData icon;
   final Color? color;
 
   const NotificationTypeConfig({
@@ -122,7 +122,7 @@ class InAppNotificationBanner {
 class _NotificationBannerWidget extends StatefulWidget {
   final String title;
   final String body;
-  final IconData icon;
+  final FaIconData icon;
   final Color? accentColor;
   final VoidCallback onTap;
   final VoidCallback onDismiss;

@@ -22,7 +22,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 /// )
 /// ```
 class DashboardActionButton extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final Color color;
   final VoidCallback onTap;
   final double? size;

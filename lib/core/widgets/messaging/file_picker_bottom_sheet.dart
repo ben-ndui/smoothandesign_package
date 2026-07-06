@@ -81,7 +81,7 @@ class FilePickerBottomSheet extends StatelessWidget {
 
   Widget _buildOption(
     BuildContext context, {
-    required IconData icon,
+    required FaIconData icon,
     required String label,
     required VoidCallback onTap,
   }) {

@@ -11,7 +11,7 @@ enum SnackBarType {
 
 /// Configuration for snackbar styling.
 class SnackBarConfig {
-  final IconData icon;
+  final FaIconData icon;
   final Color iconColor;
   final Color backgroundColor;
   final Color borderColor;
@@ -135,7 +135,7 @@ class AppSnackBar {
 
 class _SnackBarContent extends StatelessWidget {
   final String message;
-  final IconData icon;
+  final FaIconData icon;
   final Color iconColor;
   final Color backgroundColor;
   final Color borderColor;

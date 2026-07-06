@@ -15,7 +15,7 @@ class GlassButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
   final bool isPrimary;
-  final IconData? icon;
+  final FaIconData? icon;
   final double? width;
   final EdgeInsetsGeometry? padding;
 
@@ -147,7 +147,7 @@ class _GlassButtonState extends State<GlassButton>
 /// - Loading state
 /// - Ink splash feedback
 class GlassSocialButton extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final String label;
   final bool isLoading;
   final VoidCallback onPressed;

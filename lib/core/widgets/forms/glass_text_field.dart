@@ -14,7 +14,7 @@ class GlassTextField extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
   final String? label;
-  final IconData? prefixIcon;
+  final FaIconData? prefixIcon;
   final Widget? suffixIcon;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;

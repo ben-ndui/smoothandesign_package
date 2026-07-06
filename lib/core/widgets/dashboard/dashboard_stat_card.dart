@@ -27,7 +27,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 class DashboardStatCard extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
+  final FaIconData icon;
   final Color color;
   final bool compact;
   final VoidCallback? onTap;

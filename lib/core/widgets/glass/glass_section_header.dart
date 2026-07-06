@@ -14,7 +14,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 /// ```
 class GlassSectionHeader extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final FaIconData icon;
   final double? iconSize;
   final double? fontSize;
 

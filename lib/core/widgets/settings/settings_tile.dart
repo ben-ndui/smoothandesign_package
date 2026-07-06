@@ -22,7 +22,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 /// )
 /// ```
 class SettingsTile extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -86,7 +86,7 @@ class SettingsTile extends StatelessWidget {
 
 /// A settings tile with a switch toggle.
 class SettingsSwitchTile extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final String title;
   final String subtitle;
   final bool value;

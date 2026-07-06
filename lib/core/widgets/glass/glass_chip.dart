@@ -15,7 +15,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 class GlassChip extends StatefulWidget {
   final String label;
   final VoidCallback onTap;
-  final IconData? icon;
+  final FaIconData? icon;
   final bool showChevron;
 
   const GlassChip({

@@ -4,8 +4,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Navigation item data for bottom navigation bars.
 class FloatingNavItem {
-  final IconData icon;
-  final IconData selectedIcon;
+  final FaIconData icon;
+  final FaIconData selectedIcon;
   final String label;
   final int badgeCount;
 
