@@ -130,8 +130,14 @@ class BaseMessagingService {
         'isArchived': {userId1: false, userId2: false},
       };
 
-      final docRef = await _conversations.add(data);
-      final doc = await docRef.get();
+      // Bornés : ces awaits sont derrière le MessagingLoadingState plein
+      // écran du bouton « Contacter » — sans timeout, l'utilisateur reste
+      // sur un loader infini. Le TimeoutException tombe dans le catch →
+      // MessagingErrorState affiché.
+      final docRef = await _conversations
+          .add(data)
+          .timeout(const Duration(seconds: 10));
+      final doc = await docRef.get().timeout(const Duration(seconds: 10));
 
       return SmoothResponse.success(
         data: BaseConversation.fromMap(doc.data()!, doc.id),

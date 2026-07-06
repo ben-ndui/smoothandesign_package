@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/base_conversation.dart';
+import '../../models/base_message.dart';
 import '../../models/smooth_response.dart';
 import '../../services/base_messaging_service.dart';
 import 'messaging_event.dart';
@@ -27,6 +28,11 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
   /// plus jamais. Le guard de _onLoadConversations laisse alors passer un
   /// rechargement pour le même userId au lieu de garder un listener mort.
   bool _conversationsStreamBroken = false;
+
+  /// Messages reçus alors que la conversation active n'était pas encore
+  /// dans le cache (ouverture par deep-link) — rejoués dès que le doc
+  /// conversation arrive.
+  List<BaseMessage>? _pendingMessages;
 
   MessagingBloc({BaseMessagingService? messagingService})
       : _messagingService = messagingService ?? BaseMessagingService(),
@@ -165,6 +171,14 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
         } else {
           _conversations.add(conversation);
         }
+        // Des messages sont arrivés avant le doc conversation (deep-link) :
+        // rejouer l'event maintenant que le cache est rempli.
+        if (_pendingMessages != null &&
+            conversation.id == _activeConversationId) {
+          final pending = _pendingMessages!;
+          _pendingMessages = null;
+          add(MessagesUpdatedEvent(messages: pending));
+        }
       }
     }, onError: (e) {
       // Sans onError, une erreur du stream (permission-denied sur logout
@@ -197,9 +211,14 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     // Récupérer la conversation depuis le cache
     final conversation = _getConversationById(_activeConversationId!);
     if (conversation == null) {
-      // Si la conversation n'est pas encore dans le cache, on attend
+      // Conversation pas encore dans le cache (chat ouvert par deep-link /
+      // notification avant que la liste des conversations ait chargé) :
+      // mémoriser les messages — le listener streamConversation rejouera
+      // l'event dès que le doc arrive, sinon l'écran restait blanc.
+      _pendingMessages = event.messages;
       return;
     }
+    _pendingMessages = null;
 
     // Préserver l'état isSending du state précédent
     final currentState = state;
@@ -219,6 +238,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     await _messagesSubscription?.cancel();
     await _conversationSubscription?.cancel();
     _activeConversationId = null;
+    _pendingMessages = null;
 
     // Retourner à la liste des conversations
     if (_conversations.isNotEmpty) {
@@ -448,6 +468,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     _activeConversationId = null;
     _conversations = [];
     _conversationsStreamBroken = false;
+    _pendingMessages = null;
     emit(const MessagingInitialState());
   }
 

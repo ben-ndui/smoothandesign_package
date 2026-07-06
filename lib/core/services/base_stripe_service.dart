@@ -54,8 +54,13 @@ class BaseStripeService {
         throw Exception('configDocPath invalide: ${config.configDocPath}');
       }
 
-      final configDoc =
-          await _firestore.collection(parts[0]).doc(parts[1]).get();
+      // Borné : ce get() est derrière l'overlay bloquant de l'écran
+      // d'upgrade — sans timeout, spinner infini si le réseau pend.
+      final configDoc = await _firestore
+          .collection(parts[0])
+          .doc(parts[1])
+          .get()
+          .timeout(const Duration(seconds: 10));
 
       if (!configDoc.exists) {
         throw Exception('Configuration Stripe non trouvée');

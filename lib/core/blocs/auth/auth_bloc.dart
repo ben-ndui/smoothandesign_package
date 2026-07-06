@@ -294,12 +294,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UserDocumentChangedEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final roleBefore = _authService.currentUser?.role;
     try {
       await _authService.reloadUser();
     } catch (_) {
       // Idem : ne pas transformer un échec de reload en crash fatal.
     }
     if (_authService.currentUser != null) {
+      // Rôle changé côté serveur (claim de studio approuvée, switch de
+      // rôle) : les rules Firestore lisent request.auth.token.role — sans
+      // refresh forcé, l'ancien custom claim reste servi jusqu'à ~1h et
+      // toutes les actions du nouveau rôle échouent en permission-denied.
+      if (roleBefore != null && _authService.currentUser!.role != roleBefore) {
+        try {
+          await SmoothFirebase.currentUser?.getIdToken(true);
+        } catch (_) {}
+      }
       emit(AuthAuthenticatedState(user: _authService.currentUser!));
     }
   }
