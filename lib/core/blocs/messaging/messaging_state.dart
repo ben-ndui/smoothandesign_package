@@ -42,12 +42,19 @@ class ChatOpenState extends MessagingState {
   final bool hasMoreMessages;
   final bool isSending;
 
+  /// Erreur transitoire du dernier envoi de message. Non-null le temps
+  /// d'une émission (le bloc la clear immédiatement après) — à écouter
+  /// via BlocListener pour afficher un SnackBar. Rester sur ChatOpenState
+  /// (plutôt qu'émettre MessagingErrorState) préserve l'UI du chat.
+  final String? sendError;
+
   const ChatOpenState({
     required this.conversation,
     required this.messages,
     this.isLoadingMore = false,
     this.hasMoreMessages = true,
     this.isSending = false,
+    this.sendError,
   });
 
   ChatOpenState copyWith({
@@ -56,6 +63,8 @@ class ChatOpenState extends MessagingState {
     bool? isLoadingMore,
     bool? hasMoreMessages,
     bool? isSending,
+    String? sendError,
+    bool clearSendError = false,
   }) {
     return ChatOpenState(
       conversation: conversation ?? this.conversation,
@@ -63,6 +72,7 @@ class ChatOpenState extends MessagingState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMoreMessages: hasMoreMessages ?? this.hasMoreMessages,
       isSending: isSending ?? this.isSending,
+      sendError: clearSendError ? null : (sendError ?? this.sendError),
     );
   }
 
@@ -73,6 +83,7 @@ class ChatOpenState extends MessagingState {
         isLoadingMore,
         hasMoreMessages,
         isSending,
+        sendError,
       ];
 }
 

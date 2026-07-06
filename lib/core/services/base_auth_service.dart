@@ -81,7 +81,14 @@ class BaseAuthService {
       ...?extraData,
     };
 
-    await SmoothFirebase.collection('users').doc(firebaseUser.uid).set(data);
+    // Borné : ce set() est sur le chemin bloquant de l'inscription
+    // (AuthLoadingState affiché) — sans timeout, un write jamais ack'é
+    // gèle le signup en spinner infini (classe de bug App Review 2.1(a)).
+    // Le TimeoutException remonte aux try/catch des flows appelants.
+    await SmoothFirebase.collection('users')
+        .doc(firebaseUser.uid)
+        .set(data)
+        .timeout(const Duration(seconds: 10));
   }
 
   // ===== Inscription =====
@@ -528,12 +535,20 @@ class BaseAuthService {
   Future<void> _updateFcmToken() async {
     if (_currentUser == null) return;
 
+    // Awaité en ligne dans TOUS les flows de connexion : sans borne, un
+    // getToken() qui pend (APNS lent) ou un update() Firestore non ack'é
+    // laisse le bouton de login en spinner infini alors que l'auth a
+    // déjà réussi. 8s max, échec silencieux (le token sera re-poussé par
+    // le NotificationService au prochain refresh).
     try {
-      final token = await SmoothFirebase.messaging.getToken();
+      final token = await SmoothFirebase.messaging
+          .getToken()
+          .timeout(const Duration(seconds: 8));
       if (token != null) {
         await SmoothFirebase.collection('users')
             .doc(_currentUser!.uid)
-            .update({'fcmToken': token});
+            .update({'fcmToken': token})
+            .timeout(const Duration(seconds: 8));
       }
     } catch (_) {}
   }

@@ -235,7 +235,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     ResetPasswordEvent event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoadingState());
+    // Un reset lancé depuis le profil (utilisateur connecté) ne doit PAS
+    // faire sortir le bloc de l'état authentifié : les listeners app-level
+    // interpréteraient la transition comme une déconnexion (suppression du
+    // token FCM, reset calendrier…). On saute le AuthLoadingState dans ce
+    // cas et on restaure l'état authentifié après l'émission transitoire.
+    final wasAuthenticated = state is AuthAuthenticatedState;
+    final userBefore = _authService.currentUser;
+    if (!wasAuthenticated) {
+      emit(const AuthLoadingState());
+    }
 
     final response = await _authService.resetPassword(event.email);
 
@@ -243,6 +252,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthPasswordResetSentState(email: event.email));
     } else {
       emit(AuthErrorState(message: response.message, code: response.code));
+    }
+
+    if (wasAuthenticated && userBefore != null) {
+      emit(AuthAuthenticatedState(user: userBefore));
     }
   }
 
@@ -266,7 +279,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     ReloadUserEvent event,
     Emitter<AuthState> emit,
   ) async {
-    await _authService.reloadUser();
+    try {
+      await _authService.reloadUser();
+    } catch (_) {
+      // Timeout / blip réseau : on garde l'utilisateur en cache plutôt
+      // que de laisser l'exception remonter en erreur de zone non gérée.
+    }
     if (_authService.currentUser != null) {
       emit(AuthAuthenticatedState(user: _authService.currentUser!));
     }
@@ -276,7 +294,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     UserDocumentChangedEvent event,
     Emitter<AuthState> emit,
   ) async {
-    await _authService.reloadUser();
+    try {
+      await _authService.reloadUser();
+    } catch (_) {
+      // Idem : ne pas transformer un échec de reload en crash fatal.
+    }
     if (_authService.currentUser != null) {
       emit(AuthAuthenticatedState(user: _authService.currentUser!));
     }
@@ -291,6 +313,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         .snapshots()
         .listen((_) {
       add(const UserDocumentChangedEvent());
+    }, onError: (_) {
+      // permission-denied pendant la fenêtre de suppression de compte ou
+      // sur token révoqué : sans onError, l'erreur remonte à
+      // runZonedGuarded et est enregistrée comme crash fatal.
     });
   }
 

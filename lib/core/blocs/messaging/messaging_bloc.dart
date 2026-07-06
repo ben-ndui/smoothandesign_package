@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/base_conversation.dart';
-import '../../models/base_message.dart';
+import '../../models/smooth_response.dart';
 import '../../services/base_messaging_service.dart';
 import 'messaging_event.dart';
 import 'messaging_state.dart';
@@ -21,6 +21,12 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
   String? _currentUserAvatarUrl;
   String? _activeConversationId;
   List<BaseConversation> _conversations = []; // Cache des conversations
+
+  /// Passe à true quand le stream conversations meurt (permission-denied
+  /// au logout, blip réseau) — un stream Firestore en erreur ne ré-émet
+  /// plus jamais. Le guard de _onLoadConversations laisse alors passer un
+  /// rechargement pour le même userId au lieu de garder un listener mort.
+  bool _conversationsStreamBroken = false;
 
   MessagingBloc({BaseMessagingService? messagingService})
       : _messagingService = messagingService ?? BaseMessagingService(),
@@ -63,8 +69,10 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     print('🔵 [MessagingBloc] Current state: $state');
     print('🔵 [MessagingBloc] _currentUserId: $_currentUserId');
 
-    // Si déjà en cours de chargement ou chargé pour cet utilisateur, ne rien faire
-    if (_currentUserId == event.userId) {
+    // Si déjà en cours de chargement ou chargé pour cet utilisateur, ne rien
+    // faire — SAUF si le stream est mort (erreur) : il ne ré-émettra jamais,
+    // il faut le recréer.
+    if (_currentUserId == event.userId && !_conversationsStreamBroken) {
       if (state is MessagingLoadingState || state is ConversationsLoadedState) {
         print('🟡 [MessagingBloc] Already loading/loaded, skipping');
         return;
@@ -72,6 +80,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     }
 
     _currentUserId = event.userId;
+    _conversationsStreamBroken = false;
     emit(const MessagingLoadingState());
     print('🔵 [MessagingBloc] Emitted MessagingLoadingState');
 
@@ -87,6 +96,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
           },
           onError: (e) {
             print('🔴 [MessagingBloc] Stream error: $e');
+            _conversationsStreamBroken = true;
             add(const ConversationsUpdatedEvent(conversations: []));
           },
         );
@@ -156,6 +166,12 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
           _conversations.add(conversation);
         }
       }
+    }, onError: (e) {
+      // Sans onError, une erreur du stream (permission-denied sur logout
+      // forcé pendant qu'un chat est ouvert) remonte en erreur de zone
+      // non gérée → enregistrée fatal par Crashlytics. Le listener
+      // messages a son propre onError ; ici le cache reste simplement figé.
+      print('🔴 [MessagingBloc] Conversation stream error: $e');
     });
 
     // Écouter les messages
@@ -221,6 +237,22 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     }
   }
 
+  /// Clôture commune des 4 envois : remet isSending à false dans TOUS les
+  /// cas (sinon la zone de saisie reste désactivée à vie — le stream
+  /// _onMessagesUpdated préserve isSending) et surface l'échec via un
+  /// sendError transitoire (émis puis aussitôt cleared, à écouter en
+  /// BlocListener côté app pour un SnackBar).
+  void _finishSend(Emitter<MessagingState> emit, SmoothResponse response) {
+    final afterState = state;
+    if (afterState is! ChatOpenState) return;
+    if (response.isSuccess) {
+      emit(afterState.copyWith(isSending: false, clearSendError: true));
+    } else {
+      emit(afterState.copyWith(isSending: false, sendError: response.message));
+      emit((state as ChatOpenState).copyWith(clearSendError: true));
+    }
+  }
+
   Future<void> _onSendTextMessage(
     SendTextMessageEvent event,
     Emitter<MessagingState> emit,
@@ -235,7 +267,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       emit(currentState.copyWith(isSending: true));
     }
 
-    await _messagingService.sendTextMessage(
+    final response = await _messagingService.sendTextMessage(
       conversationId: conversation.id,
       senderId: _currentUserId!,
       senderName: _currentUserName ?? 'Utilisateur',
@@ -243,6 +275,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       text: event.text,
       participantIds: conversation.participantIds,
     );
+    _finishSend(emit, response);
   }
 
   Future<void> _onSendAttachmentMessage(
@@ -254,7 +287,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     final conversation = _getConversationById(_activeConversationId!);
     if (conversation == null) return;
 
-    await _messagingService.sendAttachmentMessage(
+    final response = await _messagingService.sendAttachmentMessage(
       conversationId: conversation.id,
       senderId: _currentUserId!,
       senderName: _currentUserName ?? 'Utilisateur',
@@ -263,6 +296,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       attachment: event.attachment,
       participantIds: conversation.participantIds,
     );
+    _finishSend(emit, response);
   }
 
   Future<void> _onSendAudioMessage(
@@ -274,7 +308,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     final conversation = _getConversationById(_activeConversationId!);
     if (conversation == null) return;
 
-    await _messagingService.sendAudioMessage(
+    final response = await _messagingService.sendAudioMessage(
       conversationId: conversation.id,
       senderId: _currentUserId!,
       senderName: _currentUserName ?? 'Utilisateur',
@@ -282,6 +316,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       audio: event.audio,
       participantIds: conversation.participantIds,
     );
+    _finishSend(emit, response);
   }
 
   Future<void> _onSendBusinessObjectMessage(
@@ -293,7 +328,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     final conversation = _getConversationById(_activeConversationId!);
     if (conversation == null) return;
 
-    await _messagingService.sendBusinessObjectMessage(
+    final response = await _messagingService.sendBusinessObjectMessage(
       conversationId: conversation.id,
       senderId: _currentUserId!,
       senderName: _currentUserName ?? 'Utilisateur',
@@ -301,6 +336,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
       businessObject: event.businessObject,
       participantIds: conversation.participantIds,
     );
+    _finishSend(emit, response);
   }
 
   Future<void> _onMarkConversationAsRead(
@@ -411,6 +447,7 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
     _currentUserAvatarUrl = null;
     _activeConversationId = null;
     _conversations = [];
+    _conversationsStreamBroken = false;
     emit(const MessagingInitialState());
   }
 
