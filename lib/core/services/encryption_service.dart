@@ -8,7 +8,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Service de chiffrement AES-256 pour les données sensibles.
 ///
-/// Utilise une clé dérivée du serveur ou générée localement en fallback.
+/// La clé vient EXCLUSIVEMENT du serveur (Cloud Function) : pas de fallback
+/// local — une clé dérivée du userId serait prédictible par un attaquant.
 /// Les clés sont stockées de manière sécurisée via flutter_secure_storage.
 ///
 /// Usage:
@@ -35,9 +36,6 @@ class EncryptionService {
   /// Nom de la Cloud Function pour récupérer la clé (peut être personnalisé).
   final String keyFunctionName;
 
-  /// Salt utilisé pour la génération de clé locale.
-  final String localSalt;
-
   encrypt.Key? _encryptionKey;
   encrypt.IV? _iv;
 
@@ -45,7 +43,6 @@ class EncryptionService {
     FlutterSecureStorage? secureStorage,
     FirebaseFunctions? functions,
     this.keyFunctionName = 'getEncryptionKey',
-    this.localSalt = 'smooth_local_salt_2024',
   })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _functions = functions ?? FirebaseFunctions.instance;
 
@@ -91,17 +88,11 @@ class EncryptionService {
         value: _iv!.base64,
       );
     } catch (e) {
+      // Fail-fast : pas de clé serveur = pas de chiffrement possible. L'ancien
+      // fallback dérivait la clé du userId (public) — prédictible, supprimé.
       debugPrint('Erreur récupération clé: $e');
-      // Fallback: générer une clé locale (moins sécurisé mais fonctionnel)
-      _generateLocalKey(userId);
+      rethrow;
     }
-  }
-
-  /// Génère une clé locale en fallback.
-  void _generateLocalKey(String userId) {
-    final derivedKey = _deriveKey(userId, localSalt);
-    _encryptionKey = encrypt.Key(Uint8List.fromList(derivedKey));
-    _iv = encrypt.IV.fromSecureRandom(16);
   }
 
   /// Dérive une clé AES-256 (32 bytes) à partir d'une chaîne.
@@ -113,22 +104,17 @@ class EncryptionService {
 
   /// Chiffre une chaîne de caractères.
   ///
-  /// Retourne la chaîne originale si le service n'est pas initialisé.
+  /// Lève une [StateError] si le service n'est pas initialisé et relance toute
+  /// erreur de chiffrement : retourner le clair écrirait silencieusement des
+  /// données sensibles non chiffrées en base.
   String? encryptString(String? plainText) {
     if (plainText == null || plainText.isEmpty) return plainText;
     if (_encryptionKey == null || _iv == null) {
-      debugPrint('EncryptionService non initialisé');
-      return plainText;
+      throw StateError('EncryptionService non initialisé — appeler initialize() avant encryptString()');
     }
 
-    try {
-      final encrypter = encrypt.Encrypter(encrypt.AES(_encryptionKey!));
-      final encrypted = encrypter.encrypt(plainText, iv: _iv);
-      return encrypted.base64;
-    } catch (e) {
-      debugPrint('Erreur chiffrement: $e');
-      return plainText;
-    }
+    final encrypter = encrypt.Encrypter(encrypt.AES(_encryptionKey!));
+    return encrypter.encrypt(plainText, iv: _iv).base64;
   }
 
   /// Déchiffre une chaîne de caractères.

@@ -261,7 +261,9 @@ class BaseInvitationService {
 
   String _generateCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final random = Random();
+    // Random.secure() obligatoire : un PRNG seedé par l'horloge rendrait les
+    // codes d'invitation devinables (finding audit 11/08).
+    final random = Random.secure();
     final code = String.fromCharCodes(
       Iterable.generate(codeLength, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
     );
