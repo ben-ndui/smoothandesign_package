@@ -121,26 +121,74 @@ abstract class BasePdfService {
   /// Formate une date.
   String formatDate(DateTime date) => _dateFormat.format(date);
 
-  /// Charge les polices (Inter par défaut).
+  /// Une police a-t-elle réellement été chargée ?
+  ///
+  /// Faux = les documents partent en police par défaut, donc **sans le symbole
+  /// €**. Voir [fontRegular].
+  bool get policesChargees => _fontRegular != null;
+
+  /// Charge les polices du document depuis le bundle de l'APPLICATION.
+  ///
+  /// ⚠️ Aucun `try/catch` ici, volontairement. Un chemin d'asset faux doit se
+  /// voir au premier essai, pas se transformer en documents illisibles pendant
+  /// des mois — c'est exactement ce qu'a fait [loadFonts].
+  ///
+  /// La police fournie doit porter le glyphe **€** : les polices par défaut du
+  /// PDF ne l'ont pas (voir [fontRegular]).
+  ///
+  /// ```dart
+  /// await chargerLesPolices(
+  ///   regular: 'assets/fonts/Jost-Regular.ttf',
+  ///   bold: 'assets/fonts/Jost-Bold.ttf',
+  /// );
+  /// ```
+  Future<void> chargerLesPolices({
+    required String regular,
+    required String bold,
+    AssetBundle? bundle,
+  }) async {
+    final source = bundle ?? rootBundle;
+    _fontRegular = pw.Font.ttf(await source.load(regular));
+    _fontBold = pw.Font.ttf(await source.load(bold));
+  }
+
+  /// ⚠️ NE CHARGE RIEN, et n'a jamais rien chargé.
+  ///
+  /// Cette méthode cherchait `Inter-Regular.ttf` dans les assets du paquet —
+  /// une police qui n'y a **jamais existé**, ni comme fichier ni comme asset
+  /// déclaré. Son `catch (_)` avalait l'échec et retombait sur Helvetica.
+  ///
+  /// Conséquence, mesurée sur les factures VAGUA le 29/08/2026 : le symbole €
+  /// s'imprimait en caractère parasite sur TOUS les documents produits par le
+  /// paquet, depuis toujours. Une erreur avalée qui s'imprimait sur des pièces
+  /// comptables.
+  ///
+  /// Conservée pour ne casser aucune application à la compilation. Utiliser
+  /// [chargerLesPolices] avec les polices de son propre bundle.
+  @Deprecated(
+    'Ne charge rien : les polices Inter n\'ont jamais existé dans le paquet, '
+    'et le repli PDF par défaut ne sait pas écrire « € ». '
+    'Utiliser chargerLesPolices(regular: ..., bold: ...).',
+  )
   Future<void> loadFonts() async {
-    try {
-      final regularData = await rootBundle.load(
-        'packages/smoothandesign_package/fonts/Inter-Regular.ttf',
-      );
-      final boldData = await rootBundle.load(
-        'packages/smoothandesign_package/fonts/Inter-Bold.ttf',
-      );
-      _fontRegular = pw.Font.ttf(regularData);
-      _fontBold = pw.Font.ttf(boldData);
-    } catch (_) {
-      // Utiliser les polices par défaut si non disponibles
-    }
+    assert(
+      false,
+      'BasePdfService.loadFonts() ne charge aucune police et vos montants '
+      'sortiront sans le symbole €. Appelez chargerLesPolices() avec une '
+      'police de votre application.',
+    );
   }
 
   /// Police régulière.
+  ///
+  /// ⚠️ Le repli n'écrit pas les euros. `PdfType1Font.putText` encode en
+  /// **latin-1** (`pdf/lib/src/pdf/obj/font.dart`), et latin-1 ne contient pas
+  /// U+20AC. Toute police par défaut du PDF produit donc un caractère parasite
+  /// à la place de « € ». Passer par [chargerLesPolices] n'est pas un confort
+  /// de style : c'est ce qui rend les montants lisibles.
   pw.Font get fontRegular => _fontRegular ?? pw.Font.helvetica();
 
-  /// Police grasse.
+  /// Police grasse. Même réserve que [fontRegular].
   pw.Font get fontBold => _fontBold ?? pw.Font.helveticaBold();
 
   /// Convertit un hex en couleur PDF.
