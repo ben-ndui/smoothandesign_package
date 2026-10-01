@@ -78,6 +78,19 @@ class BaseUser extends Equatable implements BaseModel {
     this.updatedAt,
   });
 
+  /// La photo vit sous trois noms selon qui a écrit le document :
+  /// l'inscription écrit `photoURL` (vide quand il n'y en a pas), `toMap()`
+  /// écrit `photoUrl` et `photo_Url`. On prend la première valeur NON VIDE :
+  /// lire `photoURL` en premier sans ce filtre masquerait une vraie photo
+  /// posée plus tard sous `photoUrl` par le `''` de l'inscription.
+  static String? _firstNonEmpty(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value is String && value.trim().isNotEmpty) return value;
+    }
+    return null;
+  }
+
   /// Crée un BaseUser depuis une Map Firestore.
   factory BaseUser.fromMap(Map<String, dynamic> map, [String? id]) {
     return BaseUser(
@@ -85,7 +98,7 @@ class BaseUser extends Equatable implements BaseModel {
       email: map['email'] ?? '',
       name: map['name'],
       displayName: map['displayName'],
-      photoURL: map['photoUrl'] ?? map['photo_Url'],
+      photoURL: _firstNonEmpty(map, const ['photoURL', 'photoUrl', 'photo_Url']),
       phoneNumber: map['phoneNumber'],
       role: BaseUserRoleExtension.fromString(map['role']),
       fcmToken: map['fcmToken'] ?? map['token'],
