@@ -41,9 +41,6 @@ class SnackBarConfig {
 class AppSnackBar {
   AppSnackBar._();
 
-  /// Default snackbar background color (dark slate)
-  static const Color defaultBackgroundColor = Color(0xFF1E293B);
-
   /// Shows a styled snackbar with the given message and type.
   static void show(
     BuildContext context, {
@@ -54,7 +51,8 @@ class AppSnackBar {
     VoidCallback? onAction,
     EdgeInsetsGeometry? margin,
   }) {
-    final config = getTypeConfig(type);
+    final theme = Theme.of(context);
+    final config = getTypeConfig(type, theme);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -65,6 +63,8 @@ class AppSnackBar {
           iconColor: config.iconColor,
           backgroundColor: config.backgroundColor,
           borderColor: config.borderColor,
+          surfaceColor: theme.colorScheme.surfaceContainerHigh,
+          onSurfaceColor: theme.colorScheme.onSurface,
           actionLabel: actionLabel,
           onAction: onAction,
         ),
@@ -99,7 +99,13 @@ class AppSnackBar {
   }
 
   /// Gets the configuration for a snackbar type.
-  static SnackBarConfig getTypeConfig(SnackBarType type) {
+  ///
+  /// success/error/warning gardent une couleur sémantique universelle
+  /// (feu rouge/orange/vert, reconnue indépendamment de la marque). `info`
+  /// n'a pas cette convention : elle reprend la couleur primaire du thème de
+  /// l'app appelante, pour que ce soit la seule des quatre a vraiment suivre
+  /// la charte de chaque app.
+  static SnackBarConfig getTypeConfig(SnackBarType type, ThemeData theme) {
     switch (type) {
       case SnackBarType.success:
         return SnackBarConfig(
@@ -125,9 +131,9 @@ class AppSnackBar {
       case SnackBarType.info:
         return SnackBarConfig(
           icon: FontAwesomeIcons.circleInfo,
-          iconColor: const Color(0xFF3B82F6),
-          backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-          borderColor: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+          iconColor: theme.colorScheme.primary,
+          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+          borderColor: theme.colorScheme.primary.withValues(alpha: 0.3),
         );
     }
   }
@@ -139,6 +145,8 @@ class _SnackBarContent extends StatelessWidget {
   final Color iconColor;
   final Color backgroundColor;
   final Color borderColor;
+  final Color surfaceColor;
+  final Color onSurfaceColor;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -148,6 +156,8 @@ class _SnackBarContent extends StatelessWidget {
     required this.iconColor,
     required this.backgroundColor,
     required this.borderColor,
+    required this.surfaceColor,
+    required this.onSurfaceColor,
     this.actionLabel,
     this.onAction,
   });
@@ -157,7 +167,7 @@ class _SnackBarContent extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppSnackBar.defaultBackgroundColor,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [
@@ -185,10 +195,10 @@ class _SnackBarContent extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.white,
+                color: onSurfaceColor,
               ),
             ),
           ),
