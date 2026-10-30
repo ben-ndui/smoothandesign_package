@@ -68,6 +68,10 @@ class BaseNotificationService {
     final initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
+      // macOS exige ses propres settings Darwin, même type qu'iOS — sans ça
+      // initialize() lève "macOS settings must be set when targeting macOS
+      // platform." (repéré sur uzme, Ben 30/10/2026).
+      macOS: iosSettings,
     );
 
     await _localNotifications.initialize(
