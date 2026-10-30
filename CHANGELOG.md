@@ -1,3 +1,17 @@
+## 1.6.3
+
+* `MessagingBloc.OpenConversationEvent` : `_onOpenConversation` n'avait aucun
+  garde-fou (contrairement a `_onLoadConversations`, deja protege par son
+  verrou `_currentUserId`/etat) et annulait/reassignait
+  `_messagesSubscription`/`_conversationSubscription` sans jamais verifier
+  s'il etait deja en cours pour le meme event. Deux dispatches rapproches
+  (double tap sur une conversation) pouvaient laisser un flux Firestore actif
+  et invisible. Fix : `transformer: restartable()` (nouveau, `bloc_concurrency`).
+  Meme defaut, memes effets, que celui corrige le 29/10/2026 dans le
+  `FavoriteBloc` d'UZME. `LoadConversationsEvent` recoit le meme transformer
+  par coherence, meme si son garde existant le protegeait deja dans les cas
+  testes.
+
 ## 1.6.2
 
 * `AppSnackBar` suit désormais le thème de l'app appelante au lieu d'un gris

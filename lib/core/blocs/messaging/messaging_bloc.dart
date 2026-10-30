@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/base_conversation.dart';
 import '../../models/base_message.dart';
@@ -37,9 +38,9 @@ class MessagingBloc extends Bloc<MessagingEvent, MessagingState> {
   MessagingBloc({BaseMessagingService? messagingService})
       : _messagingService = messagingService ?? BaseMessagingService(),
         super(const MessagingInitialState()) {
-    on<LoadConversationsEvent>(_onLoadConversations);
+    on<LoadConversationsEvent>(_onLoadConversations, transformer: restartable());
     on<ConversationsUpdatedEvent>(_onConversationsUpdated);
-    on<OpenConversationEvent>(_onOpenConversation);
+    on<OpenConversationEvent>(_onOpenConversation, transformer: restartable());
     on<MessagesUpdatedEvent>(_onMessagesUpdated);
     on<CloseConversationEvent>(_onCloseConversation);
     on<SendTextMessageEvent>(_onSendTextMessage);
