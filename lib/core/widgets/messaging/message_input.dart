@@ -15,6 +15,14 @@ class MessageInput extends StatefulWidget {
   final bool showAttachmentButton;
   final bool showAudioButton;
 
+  /// `false` (défaut) : barre pleine largeur collée au bord bas, bordure
+  /// supérieure — look historique easybiz/amobiz, inchangé.
+  /// `true` : barre détachée des bords (marge + coins arrondis + ombre),
+  /// pour les apps dont la DA est "tout flotte" (UZME). Relevé par Ben le
+  /// 30/10/2026 : la barre de saisie était la seule chose encore collée au
+  /// bas de l'écran alors que nav bar et bottom sheets flottent déjà.
+  final bool floating;
+
   const MessageInput({
     super.key,
     required this.onSendText,
@@ -29,6 +37,7 @@ class MessageInput extends StatefulWidget {
     this.hintText = 'Ecrivez un message...',
     this.showAttachmentButton = true,
     this.showAudioButton = true,
+    this.floating = false,
   });
 
   @override
@@ -70,85 +79,121 @@ class _MessageInputState extends State<MessageInput> {
     _focusNode.requestFocus();
   }
 
+  /// Marge qui détache la barre des bords en mode [MessageInput.floating].
+  static const double _floatingMargin = 16;
+  static const double _floatingRadius = 28;
+
+  BoxDecoration _decoration(ThemeData theme) {
+    if (widget.floating) {
+      return BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(_floatingRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      );
+    }
+    return BoxDecoration(
+      color: theme.colorScheme.surface,
+      border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+    );
+  }
+
+  Widget _wrapFloating(BuildContext context, Widget bar) {
+    if (!widget.floating) return bar;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: _floatingMargin,
+        right: _floatingMargin,
+        bottom: _floatingMargin / 4 + bottomInset,
+        top: 4,
+      ),
+      child: bar,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     // Show audio preview if available
     if (widget.showAudioPreview && widget.audioPreviewWidget != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
+      return _wrapFloating(
+        context,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: _decoration(theme),
+          child: widget.floating
+              ? widget.audioPreviewWidget!
+              : SafeArea(child: widget.audioPreviewWidget!),
         ),
-        child: SafeArea(child: widget.audioPreviewWidget!),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
-      child: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (widget.showAttachmentButton)
-              IconButton(
-                onPressed: widget.enabled ? widget.onAttachmentTap : null,
-                icon: const Icon(Icons.attach_file),
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            Expanded(
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 120),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  enabled: widget.enabled,
-                  maxLines: null,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    hintText: widget.hintText,
-                    hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                  ),
-                  onSubmitted: (_) => _onSend(),
-                ),
-              ),
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (widget.showAttachmentButton)
+          IconButton(
+            onPressed: widget.enabled ? widget.onAttachmentTap : null,
+            icon: const Icon(Icons.attach_file),
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        Expanded(
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 120),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(width: 4),
-            if (_hasText)
-              IconButton(
-                onPressed: widget.enabled ? _onSend : null,
-                icon: const Icon(Icons.send),
-                color: theme.colorScheme.primary,
-              )
-            else if (widget.showAudioButton)
-              _buildMicButton(theme)
-            else
-              IconButton(
-                onPressed: null,
-                icon: const Icon(Icons.send),
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              enabled: widget.enabled,
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+                hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
-          ],
+              onSubmitted: (_) => _onSend(),
+            ),
+          ),
         ),
+        const SizedBox(width: 4),
+        if (_hasText)
+          IconButton(
+            onPressed: widget.enabled ? _onSend : null,
+            icon: const Icon(Icons.send),
+            color: theme.colorScheme.primary,
+          )
+        else if (widget.showAudioButton)
+          _buildMicButton(theme)
+        else
+          IconButton(
+            onPressed: null,
+            icon: const Icon(Icons.send),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+      ],
+    );
+
+    return _wrapFloating(
+      context,
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: _decoration(theme),
+        child: widget.floating ? row : SafeArea(child: row),
       ),
     );
   }

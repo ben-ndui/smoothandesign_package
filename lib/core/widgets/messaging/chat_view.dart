@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/base_message.dart';
 import '../../models/base_conversation.dart';
-import 'message_bubble.dart';
+import 'chat_messages_list.dart';
 import 'message_input.dart';
 
 /// Vue de chat complète avec messages et input.
@@ -44,6 +44,9 @@ class ChatView extends StatefulWidget {
   /// Callback quand un utilisateur tape sur une réaction.
   final void Function(BaseMessage message, String emoji)? onReactionTap;
 
+  /// Transmis tel quel à [MessageInput.floating] (défaut `false`).
+  final bool floatingInput;
+
   const ChatView({
     super.key,
     required this.conversation,
@@ -72,6 +75,7 @@ class ChatView extends StatefulWidget {
     this.businessObjectBuilder,
     this.reactionBuilder,
     this.onReactionTap,
+    this.floatingInput = false,
   });
 
   @override
@@ -110,7 +114,23 @@ class _ChatViewState extends State<ChatView> {
       children: [
         Column(
           children: [
-            Expanded(child: _buildMessagesList()),
+            Expanded(
+              child: ChatMessagesList(
+                scrollController: _scrollController,
+                conversation: widget.conversation,
+                messages: widget.messages,
+                currentUserId: widget.currentUserId,
+                isLoadingMore: widget.isLoadingMore,
+                emptyWidget: widget.emptyWidget,
+                onMessageLongPress: widget.onMessageLongPress,
+                onAttachmentTap2: widget.onAttachmentTap2,
+                onBusinessObjectTap: widget.onBusinessObjectTap,
+                onAudioMessageTap: widget.onAudioMessageTap,
+                businessObjectBuilder: widget.businessObjectBuilder,
+                reactionBuilder: widget.reactionBuilder,
+                onReactionTap: widget.onReactionTap,
+              ),
+            ),
             MessageInput(
               onSendText: widget.onSendText,
               onAttachmentTap: widget.onAttachmentTap,
@@ -123,6 +143,7 @@ class _ChatViewState extends State<ChatView> {
               showAttachmentButton: widget.showAttachmentButton,
               showAudioButton: widget.showAudioButton,
               enabled: !widget.isSending,
+              floating: widget.floatingInput,
             ),
           ],
         ),
@@ -134,144 +155,6 @@ class _ChatViewState extends State<ChatView> {
             child: Center(child: widget.recordingOverlay!),
           ),
       ],
-    );
-  }
-
-  Widget _buildMessagesList() {
-    if (widget.messages.isEmpty) {
-      return widget.emptyWidget ?? _buildDefaultEmpty();
-    }
-
-    return ListView.builder(
-      controller: _scrollController,
-      reverse: true,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: widget.messages.length + (widget.isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (widget.isLoadingMore && index == widget.messages.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        // Inverse l'index car la liste est inversée
-        final realIndex = widget.messages.length - 1 - index;
-        final message = widget.messages[realIndex];
-        final isMe = message.senderId == widget.currentUserId;
-
-        // Afficher le nom du sender pour les groupes
-        final showSenderName = widget.conversation.type == ConversationType.group && !isMe;
-
-        // Afficher la date si c'est le premier message du jour
-        final showDate = _shouldShowDate(realIndex);
-
-        return Column(
-          children: [
-            if (showDate) _buildDateSeparator(message.sentAt),
-            MessageBubble(
-              message: message,
-              isMe: isMe,
-              showSenderName: showSenderName,
-              onLongPress: () => widget.onMessageLongPress?.call(message),
-              onAttachmentTap: () => widget.onAttachmentTap2?.call(message),
-              onBusinessObjectTap: () => widget.onBusinessObjectTap?.call(message),
-              onAudioTap: () => widget.onAudioMessageTap?.call(message),
-              businessObjectBuilder: widget.businessObjectBuilder,
-              reactionBuilder: widget.reactionBuilder,
-              currentUserId: widget.currentUserId,
-              onReactionTap: widget.onReactionTap != null
-                  ? (emoji) => widget.onReactionTap!(message, emoji)
-                  : null,
-              otherParticipantIds: widget.conversation.participantIds
-                  .where((id) => id != widget.currentUserId)
-                  .toList(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  bool _shouldShowDate(int index) {
-    if (index == 0) return true;
-
-    final current = widget.messages[index];
-    final previous = widget.messages[index - 1];
-
-    return !_isSameDay(current.sentAt, previous.sentAt);
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  Widget _buildDateSeparator(DateTime date) {
-    final theme = Theme.of(context);
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    String text;
-    if (_isSameDay(date, now)) {
-      text = "Aujourd'hui";
-    } else if (diff.inDays == 1) {
-      text = 'Hier';
-    } else if (diff.inDays < 7) {
-      const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-      text = days[date.weekday - 1];
-    } else {
-      text = '${date.day}/${date.month}/${date.year}';
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            text,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDefaultEmpty() {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun message',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Commencez la conversation !',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

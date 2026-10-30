@@ -1,3 +1,16 @@
+## 1.6.4
+
+* `MessageInput` / `ChatView` : nouveau mode `floating` (défaut `false`,
+  comportement easybiz/amobiz inchangé — testé en régression). Relevé par
+  Ben sur UZME le 30/10/2026 : la barre de saisie restait collée pleine
+  largeur au bord bas alors que la nav bar et les bottom sheets flottent
+  déjà (marge + coins arrondis + ombre). `floating: true` détache la barre
+  des bords (marge 16, rayon 28, ombre au lieu de la bordure du haut) ;
+  câblé via `ChatView.floatingInput`.
+* `chat_view.dart` passé sous 250 lignes : la liste des messages (affichage,
+  séparateurs de date, état vide) extraite dans `chat_messages_list.dart`
+  (`ChatMessagesList`), sans changement de comportement.
+
 ## 1.6.3
 
 * `MessagingBloc.OpenConversationEvent` : `_onOpenConversation` n'avait aucun
