@@ -516,6 +516,31 @@ class BaseAuthService {
     }
   }
 
+  /// Reauthenticate user with email + password (for sensitive operations —
+  /// ex. suppression de compte). Code 401 distinct pour "non connecté" vs
+  /// un mot de passe refusé par Firebase (`wrong-password`/`invalid-credential`),
+  /// pour que l'appelant puisse afficher l'erreur SOUS le bon champ sans
+  /// avoir à parser le message.
+  Future<SmoothResponse<bool>> reauthenticateWithPassword(String password) async {
+    try {
+      final user = SmoothFirebase.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        return SmoothResponse(data: false, message: "Non connecté", code: 401);
+      }
+
+      final credential =
+          EmailAuthProvider.credential(email: email, password: password);
+      await user.reauthenticateWithCredential(credential);
+
+      return SmoothResponse(data: true, message: "Réauthentification réussie", code: 200);
+    } on FirebaseAuthException catch (e) {
+      return SmoothResponse(data: false, message: authErrorMessageFor(e), code: 403);
+    } catch (e) {
+      return SmoothResponse(data: false, message: "Erreur: $e", code: 500);
+    }
+  }
+
   /// Get the authentication provider for the current user.
   /// Returns 'password', 'google.com', 'apple.com', or null.
   String? getAuthProvider() {
