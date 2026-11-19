@@ -1,9 +1,7 @@
 // Un onglet de [FloatingNavBar] — icône, libellé éventuel, badge, encre qui
 // se fond, icône qui rebondit à l'activation, léger enfoncement au toucher.
-// Le fond de la pastille active est le MÊME widget que son contenu
-// (Container autour de l'icône + libellé) : pas de couche séparée à
-// synchroniser. Interne au dossier `navigation/`, pas d'usage hors de ce
-// composant.
+// Portage FIDÈLE de taxiboat/lib/widgets/vagua/vagua_nav_bar_parts.dart —
+// interne au dossier `navigation/`, pas d'usage hors de ce composant.
 import 'package:flutter/material.dart';
 
 import 'floating_nav_bar.dart';
@@ -87,8 +85,6 @@ class _FloatingNavTabState extends State<FloatingNavTab> {
                   widget.style.activeContent,
                   avancee,
                 )!,
-                pastille: widget.style.activePill,
-                avancee: avancee,
                 sansAnimation: widget.sansAnimation,
                 rebond: widget.actif ? 1 : 0,
                 badge: widget.style.badge,
@@ -108,8 +104,6 @@ class _Contenu extends StatelessWidget {
     required this.compact,
     required this.avecLibelle,
     required this.encre,
-    required this.pastille,
-    required this.avancee,
     required this.sansAnimation,
     required this.rebond,
     required this.badge,
@@ -120,11 +114,6 @@ class _Contenu extends StatelessWidget {
   final bool compact;
   final bool avecLibelle;
   final Color encre;
-  final Color pastille;
-
-  /// 0 → 1 pendant que l'onglet devient actif — fait aussi apparaître le
-  /// fond de la pastille en fondu, en même temps que l'encre.
-  final double avancee;
   final bool sansAnimation;
   final double rebond;
   final Color badge;
@@ -157,26 +146,20 @@ class _Contenu extends StatelessWidget {
       ),
     );
 
-    return Center(
-      child: Container(
-        padding: compact
-            ? const EdgeInsets.symmetric(horizontal: 15, vertical: 9)
-            : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Color.lerp(pastille.withValues(alpha: 0), pastille, avancee),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: compact
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [icone, const SizedBox(width: 8), Flexible(child: libelle)],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [icone, const SizedBox(height: 2), Flexible(child: libelle)],
-              ),
-      ),
-    );
+    // En compact, l'actif se lit en ligne (icône puis libellé) ; en complet,
+    // chaque onglet empile son icône au-dessus de son libellé. Padding fixe,
+    // pas de centrage : la pastille (couche séparée) occupe toute la zone.
+    return compact
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [icone, const SizedBox(width: 8), Flexible(child: libelle)],
+            ),
+          )
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [icone, const SizedBox(height: 2), Flexible(child: libelle)],
+          );
   }
 }

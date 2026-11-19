@@ -1,5 +1,7 @@
-// Contenu de [FloatingNavBar] : géométrie des onglets, rangée. Sorti du
-// fichier principal pour tenir la charte des 250 lignes ; interne à ce
+// Contenu de [FloatingNavBar] : géométrie, pastille glissante, rangée
+// d'onglets. Portage FIDÈLE de taxiboat/lib/widgets/vagua/vagua_nav_bar.dart
+// — décision de Ben (19/11/2026) de ne plus retoucher la mécanique. Sorti
+// du fichier principal pour tenir la charte des 250 lignes ; interne à ce
 // dossier, pas d'usage hors de `floating_nav_bar.dart`.
 import 'package:flutter/material.dart';
 
@@ -39,25 +41,43 @@ class FloatingNavBarContent extends StatelessWidget {
     );
     final libelleTient = geo.libelleTient(FloatingNavBar.placeMinLibelle);
 
-    return Row(
+    return Stack(
       children: [
-        for (final (index, item) in items.indexed) ...[
-          if (index > 0) const SizedBox(width: FloatingNavBar.ecartEntreOnglets),
-          // Largeur EXPLICITE (pas Expanded) : un onglet plus large que sa
-          // part égale décentrerait son icône.
-          SizedBox(
-            width: geo.largeur(index),
-            child: FloatingNavTab(
-              item: item,
-              actif: index == indexActif,
-              compact: compact,
-              avecLibelle: !compact || (index == indexActif && libelleTient),
-              sansAnimation: sansAnimation,
-              style: style,
-              onTap: () => onChanged(index),
-            ),
+        // La pastille, DERRIÈRE les onglets : elle glisse et change de
+        // largeur d'une position à l'autre — toute la zone tactile de
+        // l'onglet actif, sans retouche de largeur ni de centrage.
+        AnimatedPositioned(
+          left: geo.gauche(indexActif),
+          width: geo.largeur(indexActif),
+          top: 0,
+          bottom: 0,
+          duration: sansAnimation ? Duration.zero : FloatingNavBar.dureeGlissement,
+          curve: Curves.easeOutCubic,
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: style.activePill, borderRadius: BorderRadius.circular(24)),
           ),
-        ],
+        ),
+        Row(
+          children: [
+            for (final (index, item) in items.indexed) ...[
+              if (index > 0) const SizedBox(width: FloatingNavBar.ecartEntreOnglets),
+              // Largeur EXPLICITE (pas Expanded) : un onglet plus large que sa
+              // part égale décentrerait son icône.
+              SizedBox(
+                width: geo.largeur(index),
+                child: FloatingNavTab(
+                  item: item,
+                  actif: index == indexActif,
+                  compact: compact,
+                  avecLibelle: !compact || (index == indexActif && libelleTient),
+                  sansAnimation: sansAnimation,
+                  style: style,
+                  onTap: () => onChanged(index),
+                ),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }
