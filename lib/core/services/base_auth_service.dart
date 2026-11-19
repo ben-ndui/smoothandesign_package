@@ -389,6 +389,38 @@ class BaseAuthService {
     }
   }
 
+  /// Ajoute un mot de passe à un compte connecté par Google/Apple SEUL —
+  /// les deux méthodes cohabitent ensuite, aucune n'est retirée. Code 403
+  /// distinct pour `requires-recent-login` (reconnexion sociale à refaire
+  /// avant de réessayer) vs un mot de passe refusé par Firebase (faible,
+  /// déjà pris par un autre compte).
+  Future<SmoothResponse<bool>> linkPassword(String newPassword) async {
+    try {
+      final user = SmoothFirebase.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        return SmoothResponse(data: false, message: "Non connecté", code: 401);
+      }
+
+      final credential =
+          EmailAuthProvider.credential(email: email, password: newPassword);
+      await user.linkWithCredential(credential);
+
+      return SmoothResponse(data: true, message: "Mot de passe défini", code: 200);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return SmoothResponse(
+          data: false,
+          message: "Reconnecte-toi pour définir un mot de passe",
+          code: 403,
+        );
+      }
+      return SmoothResponse(data: false, message: authErrorMessageFor(e), code: 500);
+    } catch (e) {
+      return SmoothResponse(data: false, message: "Erreur: $e", code: 500);
+    }
+  }
+
   // ===== Suppression de compte =====
 
   /// Supprime le compte utilisateur.
