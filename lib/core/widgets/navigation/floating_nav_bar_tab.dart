@@ -1,9 +1,13 @@
 // Un onglet de [FloatingNavBar] — icône, libellé éventuel, badge, encre qui
 // se fond, icône qui rebondit à l'activation, léger enfoncement au toucher.
-// Interne au dossier `navigation/`, pas d'usage hors de ce composant.
+// Le fond de la pastille active est le MÊME widget que son contenu
+// (Container autour de l'icône + libellé) : pas de couche séparée à
+// synchroniser. Interne au dossier `navigation/`, pas d'usage hors de ce
+// composant.
 import 'package:flutter/material.dart';
 
 import 'floating_nav_bar.dart';
+import 'floating_nav_bar_icon.dart';
 import 'floating_nav_bar_style.dart';
 
 class FloatingNavTab extends StatefulWidget {
@@ -83,6 +87,8 @@ class _FloatingNavTabState extends State<FloatingNavTab> {
                   widget.style.activeContent,
                   avancee,
                 )!,
+                pastille: widget.style.activePill,
+                avancee: avancee,
                 sansAnimation: widget.sansAnimation,
                 rebond: widget.actif ? 1 : 0,
                 badge: widget.style.badge,
@@ -102,6 +108,8 @@ class _Contenu extends StatelessWidget {
     required this.compact,
     required this.avecLibelle,
     required this.encre,
+    required this.pastille,
+    required this.avancee,
     required this.sansAnimation,
     required this.rebond,
     required this.badge,
@@ -112,6 +120,11 @@ class _Contenu extends StatelessWidget {
   final bool compact;
   final bool avecLibelle;
   final Color encre;
+  final Color pastille;
+
+  /// 0 → 1 pendant que l'onglet devient actif — fait aussi apparaître le
+  /// fond de la pastille en fondu, en même temps que l'encre.
+  final double avancee;
   final bool sansAnimation;
   final double rebond;
   final Color badge;
@@ -119,10 +132,10 @@ class _Contenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icone = _IconeQuiRebondit(
+    final icone = IconeQuiRebondit(
       actif: rebond == 1,
       sansAnimation: sansAnimation,
-      enfant: _IconeEtBadge(
+      enfant: IconeEtBadge(
         item: item,
         encre: encre,
         taille: compact && !avecLibelle ? 24 : 22,
@@ -144,101 +157,26 @@ class _Contenu extends StatelessWidget {
       ),
     );
 
-    // La zone tactile de l'onglet actif dépasse largement son contenu (cible
-    // généreuse, pastille intrinsèque dessous, cf. FloatingNavBar) — centrer,
-    // sinon le contenu colle au bord pendant que la pastille reste au milieu.
     return Center(
-      child: compact
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Row(
+      child: Container(
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: 15, vertical: 9)
+            : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Color.lerp(pastille.withValues(alpha: 0), pastille, avancee),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: compact
+            ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [icone, const SizedBox(width: 8), Flexible(child: libelle)],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [icone, const SizedBox(height: 2), Flexible(child: libelle)],
               ),
-            )
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [icone, const SizedBox(height: 2), Flexible(child: libelle)],
-            ),
-    );
-  }
-}
-
-/// L'icône active grossit d'un cran avec un léger dépassement — un cran, pas
-/// un zoom : sur une barre touchée vingt fois par session, un vrai zoom
-/// fatiguerait l'œil.
-class _IconeQuiRebondit extends StatelessWidget {
-  const _IconeQuiRebondit({
-    required this.actif,
-    required this.sansAnimation,
-    required this.enfant,
-  });
-
-  final bool actif;
-  final bool sansAnimation;
-  final Widget enfant;
-
-  @override
-  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-        tween: Tween(end: actif ? 1 : 0),
-        duration:
-            sansAnimation ? Duration.zero : const Duration(milliseconds: 320),
-        // `easeOutBack` dépasse la valeur cible puis revient : c'est ce
-        // dépassement qui donne le rebond, pas une seconde animation.
-        curve: Curves.easeOutBack,
-        builder: (_, avancee, enfantConstant) => Transform.scale(
-          scale: 1 + 0.09 * avancee,
-          child: enfantConstant,
-        ),
-        child: enfant,
-      );
-}
-
-/// L'icône, surmontée de sa pastille de compteur s'il y a lieu.
-class _IconeEtBadge extends StatelessWidget {
-  const _IconeEtBadge({
-    required this.item,
-    required this.encre,
-    required this.taille,
-    required this.badge,
-    required this.onBadge,
-  });
-
-  final FloatingNavItem item;
-  final Color encre;
-  final double taille;
-  final Color badge;
-  final Color onBadge;
-
-  @override
-  Widget build(BuildContext context) {
-    final compteur = item.badgeCount;
-    final icone = Icon(item.icon, size: taille, color: encre);
-    if (compteur == null || compteur <= 0) return icone;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        icone,
-        Positioned(
-          top: -4,
-          right: -8,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 18),
-            height: 18,
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(color: badge, borderRadius: BorderRadius.circular(9)),
-            child: Text(
-              // Au-delà de 99 la pastille s'élargirait au point de manger
-              // l'onglet voisin ; le nombre exact n'y ajoute rien.
-              compteur > 99 ? '99+' : '$compteur',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: onBadge),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

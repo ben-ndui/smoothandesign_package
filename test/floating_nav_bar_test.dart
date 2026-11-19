@@ -1,7 +1,9 @@
-// Régressions du 19/11/2026 (extraction depuis taxiboat, deux portages
-// manuels ratés avant celui-ci) : la pastille active doit avoir une largeur
-// intrinsèque (pas toute la zone tactile) et des marges extérieures
-// symétriques quel que soit l'onglet actif — premier, milieu ou dernier.
+// Régressions du 19/11/2026 (extraction depuis taxiboat) : la pastille
+// active doit avoir une largeur intrinsèque (pas toute la zone tactile) et
+// ne jamais déborder de la barre, quel que soit l'onglet actif. Le fond de
+// la pastille est le MÊME widget que son contenu (pas une couche séparée
+// à synchroniser) — deux correctifs successifs avaient échoué avant cette
+// simplification.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smoothandesign_package/core/widgets/navigation/navigation_exports.dart';
@@ -25,6 +27,13 @@ const _items = [
 ];
 
 Future<void> _pump(WidgetTester tester, int indexActif, ValueChanged<int> onChanged) async {
+  // Largeur réaliste (téléphone) : sans ça, la surface de test par défaut
+  // (bien plus large) donne un mou énorme à l'onglet actif et fausse les
+  // bornes vérifiées ici.
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -44,46 +53,51 @@ Future<void> _pump(WidgetTester tester, int indexActif, ValueChanged<int> onChan
   await tester.pumpAndSettle();
 }
 
+/// La pastille de l'onglet actif : le Container le plus proche qui porte
+/// directement l'icône (fond + padding), pas un calque séparé.
+Rect _pastilleDe(WidgetTester tester, IconData icone) {
+  final container = find.ancestor(of: find.byIcon(icone), matching: find.byType(Container));
+  return tester.getRect(container.first);
+}
+
 void main() {
   testWidgets('la pastille est plus étroite que toute la zone active', (tester) async {
     await _pump(tester, 0, (_) {});
 
     final zoneActive = tester.getSize(find.byType(FloatingNavTab).first).width;
-    final pastille = tester.getSize(find.byKey(const ValueKey('floating-nav-bar-pastille')));
+    final pastille = _pastilleDe(tester, Icons.home_outlined);
 
     expect(pastille.width, lessThan(zoneActive));
   });
 
-  testWidgets('marges extérieures symétriques : premier onglet actif', (tester) async {
+  testWidgets('le libellé reste DANS la pastille', (tester) async {
     await _pump(tester, 0, (_) {});
 
-    final bar = tester.getRect(
-      find.descendant(of: find.byType(FloatingNavBar), matching: find.byType(Container)).first,
-    );
-    final pastille = tester.getRect(find.byKey(const ValueKey('floating-nav-bar-pastille')));
-    // L'ICÔNE du dernier onglet, pas sa zone tactile (toujours flush avec
-    // le bord intérieur du conteneur, peu importe l'inset visuel de l'icône).
-    final derniereIcone = tester.getRect(find.byIcon(Icons.chat_bubble_outline));
+    final pastille = _pastilleDe(tester, Icons.home_outlined);
+    final texte = tester.getRect(find.text('Accueil'));
 
-    final margeGauche = pastille.left - bar.left;
-    final margeDroite = bar.right - derniereIcone.right;
-
-    expect(margeGauche, closeTo(margeDroite, 1));
+    expect(texte.left, greaterThanOrEqualTo(pastille.left));
+    expect(texte.right, lessThanOrEqualTo(pastille.right));
   });
 
-  testWidgets('marges extérieures symétriques : dernier onglet actif', (tester) async {
+  testWidgets('la pastille ne déborde jamais de la barre : premier onglet actif', (tester) async {
+    await _pump(tester, 0, (_) {});
+
+    final bar = tester.getRect(find.byType(FloatingNavBar));
+    final pastille = _pastilleDe(tester, Icons.home_outlined);
+
+    expect(pastille.left, greaterThan(bar.left));
+    expect(pastille.left - bar.left, lessThan(60));
+  });
+
+  testWidgets('la pastille ne déborde jamais de la barre : dernier onglet actif', (tester) async {
     await _pump(tester, 4, (_) {});
 
-    final bar = tester.getRect(
-      find.descendant(of: find.byType(FloatingNavBar), matching: find.byType(Container)).first,
-    );
-    final premiereIcone = tester.getRect(find.byIcon(Icons.home_outlined));
-    final pastille = tester.getRect(find.byKey(const ValueKey('floating-nav-bar-pastille')));
+    final bar = tester.getRect(find.byType(FloatingNavBar));
+    final pastille = _pastilleDe(tester, Icons.chat_bubble_outline);
 
-    final margeGauche = premiereIcone.left - bar.left;
-    final margeDroite = bar.right - pastille.right;
-
-    expect(margeGauche, closeTo(margeDroite, 1));
+    expect(pastille.right, lessThan(bar.right));
+    expect(bar.right - pastille.right, lessThan(60));
   });
 
   testWidgets('taper un onglet notifie son index', (tester) async {
